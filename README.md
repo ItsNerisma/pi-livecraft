@@ -7,6 +7,7 @@
 The repository is set up to be forked and changed while you use it. 
 
 [![Built with Pi](https://img.shields.io/badge/Built%20with-Pi.dev%20❤️-6C63FF?style=flat-square&logo=terminal&logoColor=white)](https://pi.dev)
+[![GitHub stars](https://img.shields.io/github/stars/ItsNerisma/pi-livecraft?style=flat-square&logo=github)](https://github.com/ItsNerisma/pi-livecraft/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/ItsNerisma/pi-livecraft?style=flat-square&logo=github)](https://github.com/ItsNerisma/pi-livecraft/forks)
 [![License](https://img.shields.io/github/license/ItsNerisma/pi-livecraft?style=flat-square)](LICENSE)
 
