@@ -1264,6 +1264,7 @@ function App() {
                       <PlanPanel
                         plan={plan}
                         running={selectedSession.status === 'running'}
+                        sessionId={selectedSession.id}
                       />
                     )}
                     {questionnaire && questionnaireInComposer && (

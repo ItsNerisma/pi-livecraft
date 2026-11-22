@@ -8,9 +8,9 @@ The plan panel shows the macro plan Pi committed for the current task, directly 
 
 - 2 to 8 steps, at most one `in_progress`, at most 120 characters per step;
 - statuses are `pending`, `in_progress`, `completed`, and `skipped`;
-- steps are written in the language the user writes in;
+- steps are written in the language the user writes in, and their text stays stable so the panel keeps their timing;
 - a rejected call returns an error to the model and keeps the previous plan;
-- the tool acknowledges one line of progress so the model never maintains its own count.
+- the tool acknowledges one line of progress so the model never maintains its own count, and names the step to work on next so it transitions the plan instead of finishing every step in one final call.
 
 The normalized plan travels in the tool result's `details`. Pi persists `details` in the session, keeps them out of the model context, and forwards them in `tool_execution_end` events, so the panel needs no extension memory, no status channel, and no backend cache.
 
@@ -37,7 +37,7 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 - a snapshot refresh can resend a payload older than time the panel already folded, so the panel keeps the larger value until Pi reports more;
 - replacing a step with different text starts a new step, so the old time goes with it;
 - a plan that shares no step with the previous one — or that starts with no finished step after a completed one — starts a fresh total, so a new task never inherits the previous clock;
-- after a reload, accumulated time comes back from the session; only the part of the running step elapsed after the last update restarts from zero.
+- a reload resumes the timer from the payload's `recordedAt` instant instead of restarting it, and `plan-clock-store.ts` keeps the folded time in browser storage on `pagehide`, so a paused plan also survives a refresh. A new turn clears that entry, so a later plan never inherits it.
 
 `PlanClock` is covered in `test/plan.test.ts` with the pause, completion, restore, and replacement cases.
 

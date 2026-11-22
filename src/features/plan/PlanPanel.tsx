@@ -1,6 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Tooltip } from '../../components/Tooltip.tsx'
-import { formatPlanDuration, planIdentity, type PlanState } from './plan-state.ts'
+import { readPlanTiming, writePlanTiming } from './plan-clock-store.ts'
+import {
+  formatPlanDuration,
+  planIdentity,
+  planTiming,
+  type PlanState,
+  type PlanTiming,
+} from './plan-state.ts'
 import type { PlanStep, PlanStepStatus } from '../../../shared/plan.ts'
 
 const collapsedPlanKey = 'pi-livecraft.plan-collapsed'
@@ -19,24 +26,22 @@ const statusLabels: Record<PlanStepStatus, string> = {
   skipped: 'skipped',
 }
 
-/** Active time the panel knows for one plan: its steps and the plan as a whole. */
-interface PlanTiming {
-  texts: string[]
-  steps: ReadonlyMap<string, number>
-  totalMs: number
-  complete: boolean
-}
-
 /**
  * Shows the plan Pi committed for the current task. The panel stays collapsed for the plan the
  * user folded away and reopens when Pi replaces the plan with different steps.
  */
-export function PlanPanel({ plan, running }: { plan: PlanState; running: boolean }) {
+export function PlanPanel(
+  { plan, running, sessionId }: { plan: PlanState; running: boolean; sessionId: string },
+) {
   const identity = useMemo(() => planIdentity(plan), [plan])
   const [collapsed, setCollapsed] = useState(() => readCollapsedPlan() === identity)
   const [now, setNow] = useState(() => Date.now())
-  const [timing, setTiming] = useState<PlanTiming>(() => planTiming(plan))
+  // A reload reopens the panel with the time it had folded, not with the older payload values.
+  const [timing, setTiming] = useState<PlanTiming>(() =>
+    planTiming(plan, readPlanTiming(sessionId))
+  )
   const [activeSince, setActiveSince] = useState<number | undefined>()
+  const persistRef = useRef<() => void>(() => {})
 
   useEffect(() => setCollapsed(readCollapsedPlan() === identity), [identity])
 
@@ -47,11 +52,13 @@ export function PlanPanel({ plan, running }: { plan: PlanState; running: boolean
   }, [plan])
 
   // Run the clock only while Pi works; fold the live window into the plan and its current step.
+  // `recordedAt` is the instant the payload's timings were taken, so a reload during a run
+  // resumes the timer where the last update left it instead of restarting it from zero.
   useEffect(() => {
     if (!running) return
-    const startedAt = Date.now()
+    const startedAt = Math.min(plan.plan.recordedAt ?? Date.now(), Date.now())
     setActiveSince(startedAt)
-    setNow(startedAt)
+    setNow(Date.now())
     return () => {
       const elapsed = Date.now() - startedAt
       setActiveSince(undefined)
@@ -83,6 +90,28 @@ export function PlanPanel({ plan, running }: { plan: PlanState; running: boolean
   const durationOf = (step: PlanStep): number =>
     (timing.steps.get(step.text) ?? 0) + (step.status === 'in_progress' ? live : 0)
   const total = timing.totalMs + (running && !plan.complete ? live : 0)
+
+  // Leaving the page is the only moment folded time cannot be derived again.
+  useEffect(() => {
+    persistRef.current = () => {
+      const elapsed = activeSince === undefined ? 0 : Math.max(0, Date.now() - activeSince)
+      const step = plan.plan.steps.find(({ status }) => status === 'in_progress')?.text
+      const steps = new Map(timing.steps)
+      if (step !== undefined && elapsed > 0 && !plan.complete)
+        steps.set(step, (steps.get(step) ?? 0) + elapsed)
+      writePlanTiming(sessionId, {
+        texts: timing.texts,
+        steps,
+        totalMs: plan.complete ? timing.totalMs : timing.totalMs + elapsed,
+        complete: timing.complete,
+      })
+    }
+  })
+  useEffect(() => {
+    const persist = (): void => persistRef.current()
+    window.addEventListener('pagehide', persist)
+    return () => window.removeEventListener('pagehide', persist)
+  }, [])
 
   const toggle = (): void => {
     const next = !collapsed
@@ -155,40 +184,6 @@ export function PlanPanel({ plan, running }: { plan: PlanState; running: boolean
 
 function readCollapsedPlan(): string | undefined {
   return window.localStorage.getItem(collapsedPlanKey) ?? undefined
-}
-
-/**
- * Keeps the larger value while the plan shares a step with the previous one, so a stale payload
- * never rewinds folded time, and resets to the reported timings when Pi commits a new plan.
- */
-function planTiming(plan: PlanState, current?: PlanTiming): PlanTiming {
-  const texts = plan.plan.steps.map(({ text }) => text)
-  const previous = current && !startsNewPlan(current, plan) ? current : undefined
-  const steps = new Map<string, number>()
-  for (const step of plan.plan.steps) {
-    const reported = step.activeMs ?? 0
-    steps.set(
-      step.text,
-      previous ? Math.max(previous.steps.get(step.text) ?? 0, reported) : reported,
-    )
-  }
-  const reportedTotal = plan.plan.activeMs
-    ?? plan.plan.steps.reduce((sum, step) => sum + (step.activeMs ?? 0), 0)
-  return {
-    texts,
-    steps,
-    totalMs: previous ? Math.max(previous.totalMs, reportedTotal) : reportedTotal,
-    complete: plan.complete,
-  }
-}
-
-function startsNewPlan(current: PlanTiming, plan: PlanState): boolean {
-  const sharesText = plan.plan.steps.some(({ text }) => current.texts.includes(text))
-  if (!sharesText) return current.texts.length > 0
-  const startsFresh = !plan.plan.steps.some(({ status }) =>
-    status === 'completed' || status === 'skipped'
-  )
-  return current.complete && startsFresh
 }
 
 function writeCollapsedPlan(identity: string | undefined): void {

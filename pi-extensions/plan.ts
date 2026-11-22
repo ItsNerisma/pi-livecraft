@@ -19,7 +19,7 @@ const rejectedPlanMessage =
 
 /** One-line policy so adoption never depends on the model discovering the tool. */
 const planPolicy =
-  'The interface shows your plan live while you work. Before the first action of a task that needs more than two tool calls, commit that plan with update_plan, then keep its steps current.'
+  'The interface shows your plan live while you work. Commit a task that needs more than two tool calls with update_plan before your first action, then mark each step in progress when you start it and completed when you finish it.'
 
 /** Registers the tool that commits and updates the macro plan shown above the composer. */
 export default function registerPlan(pi: ExtensionAPI): void {
@@ -57,8 +57,8 @@ export default function registerPlan(pi: ExtensionAPI): void {
     description: 'Commit the macro plan for the current task so the user can follow your steps.',
     promptSnippet: 'Commit and update the macro plan for the current task',
     promptGuidelines: [
-      'Call update_plan before the first tool call of every task that needs more than two steps, then keep the plan current.',
-      'Update update_plan when a step starts or finishes, never between steps, and always send the complete plan.',
+      'Call update_plan before the first tool call of every task that needs more than two steps, and again at every step transition.',
+      'Mark a step in progress when you start it and completed when you finish it; never finish several steps in one final call.',
       'Write every update_plan step in the language the user is writing in.',
       `Skip update_plan for a single-step request and for a follow-up that finishes the plan already committed. Send ${planMinimumSteps}-${planMaximumSteps} steps.`,
       'Keep each step text stable between updates so the interface can preserve its timing.',
@@ -90,14 +90,18 @@ export default function registerPlan(pi: ExtensionAPI): void {
   })
 }
 
-/** Echoes progress so the model never has to maintain its own count of finished steps. */
+/** Echoes progress plus the step to work on next, so the model cannot drift into one final call. */
 function acknowledge(plan: Plan): string {
   const done = plan
     .steps
     .filter(({ status }) => status === 'completed' || status === 'skipped')
     .length
   const current = plan.steps.find(({ status }) => status === 'in_progress')
+  const next = plan.steps.find(({ status }) => status === 'pending')
   const progress = `Plan: ${done}/${plan.steps.length} steps done`
-  if (!current) return progress
-  return `${progress} · in progress: ${current.text.slice(0, 60)}`
+  const focus = current ?? next
+  if (focus === undefined) return `${progress} · complete`
+  return `${progress} · ${current ? 'now' : 'next'}: ${
+    focus.text.slice(0, 60)
+  } · update update_plan when this step changes`
 }

@@ -59,6 +59,76 @@ export function planIdentity(state: PlanState): string {
   return state.plan.steps.map(({ text }) => text).join('\u0000')
 }
 
+/** Active time the panel knows for one plan: its steps and the plan as a whole. */
+export interface PlanTiming {
+  texts: string[]
+  steps: ReadonlyMap<string, number>
+  totalMs: number
+  complete: boolean
+}
+
+/**
+ * Keeps the larger value while the plan shares a step with the previous one, so a stale payload or
+ * a page reload never rewinds folded time, and resets to the reported timings for a new plan.
+ */
+export function planTiming(plan: PlanState, current?: PlanTiming): PlanTiming {
+  const texts = plan.plan.steps.map(({ text }) => text)
+  const previous = current && !startsNewPlan(current, plan) ? current : undefined
+  const steps = new Map<string, number>()
+  for (const step of plan.plan.steps) {
+    const reported = step.activeMs ?? 0
+    steps.set(
+      step.text,
+      previous ? Math.max(previous.steps.get(step.text) ?? 0, reported) : reported,
+    )
+  }
+  const reportedTotal = plan.plan.activeMs
+    ?? plan.plan.steps.reduce((sum, step) => sum + (step.activeMs ?? 0), 0)
+  return {
+    texts,
+    steps,
+    totalMs: previous ? Math.max(previous.totalMs, reportedTotal) : reportedTotal,
+    complete: plan.complete,
+  }
+}
+
+/** Serialises a timing for browser storage; `parsePlanTiming()` validates it back. */
+export function serializePlanTiming(timing: PlanTiming): JsonObject {
+  return {
+    texts: timing.texts,
+    steps: Object.fromEntries(timing.steps),
+    totalMs: timing.totalMs,
+    complete: timing.complete,
+  }
+}
+
+/** Accepts only a well-formed stored timing; a damaged entry restarts the timers instead. */
+export function parsePlanTiming(value: unknown): PlanTiming | undefined {
+  if (!isObject(value) || !Array.isArray(value.texts) || !isObject(value.steps)) return undefined
+  if (!isActiveTime(value.totalMs) || typeof value.complete !== 'boolean') return undefined
+  const texts = value.texts.filter((text): text is string => typeof text === 'string')
+  if (texts.length !== value.texts.length) return undefined
+  const steps = new Map<string, number>()
+  for (const [text, activeMs] of Object.entries(value.steps)) {
+    if (!isActiveTime(activeMs)) return undefined
+    steps.set(text, activeMs)
+  }
+  return { texts, steps, totalMs: value.totalMs, complete: value.complete }
+}
+
+function startsNewPlan(current: PlanTiming, plan: PlanState): boolean {
+  const sharesText = plan.plan.steps.some(({ text }) => current.texts.includes(text))
+  if (!sharesText) return current.texts.length > 0
+  const startsFresh = !plan.plan.steps.some(({ status }) =>
+    status === 'completed' || status === 'skipped'
+  )
+  return current.complete && startsFresh
+}
+
+function isActiveTime(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+}
+
 /** Formats a plan duration as `42s`, `3:07`, or `1:02:09` so a running timer stays short. */
 export function formatPlanDuration(ms: number): string {
   const seconds = Math.max(0, Math.floor(ms / 1000))

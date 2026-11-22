@@ -15,6 +15,7 @@ import {
   updatePlanToolName,
   type PlanState,
 } from '../plan/plan-state.ts'
+import { clearPlanTiming } from '../plan/plan-clock-store.ts'
 import {
   applyToolCallUpdate,
   applyToolExecutionUpdate,
@@ -349,6 +350,7 @@ export function useConversationRuntime(
     setLiveMessages(next)
     // A new turn ends the previous plan, matching the plan tool's commit-per-task contract.
     setPlan(undefined)
+    clearPlanTiming(selectedIdRef.current)
     return id
   }, [flushLiveUpdates])
 

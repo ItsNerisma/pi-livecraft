@@ -15,6 +15,10 @@ import {
 import { PlanClock } from '../shared/plan-clock.ts'
 import {
   formatPlanDuration,
+  parsePlanTiming,
+  planTiming,
+  serializePlanTiming,
+  type PlanTiming,
   planFromMessages,
   planIdentity,
   planState,
@@ -375,4 +379,66 @@ test('formats plan durations as a compact clock', () => {
   assert.equal(formatPlanDuration(187_000), '3:07')
   assert.equal(formatPlanDuration(3_600_000), '1:00:00')
   assert.equal(formatPlanDuration(3_729_000), '1:02:09')
+})
+
+test('keeps folded plan timing across a stale payload and resets for a new plan', () => {
+  const running = planState(
+    parsePlanArguments({
+      steps: [{ text: 'A', status: 'completed' }, { text: 'B', status: 'in_progress' }],
+    }) as Plan,
+  )
+  const folded: PlanTiming = {
+    texts: ['A', 'B'],
+    steps: new Map([['A', 4_000], ['B', 2_000]]),
+    totalMs: 6_000,
+    complete: false,
+  }
+
+  // A snapshot refresh can resend an older payload: the folded time must win.
+  const merged = planTiming(running, folded)
+  assert.equal(merged.steps.get('A'), 4_000)
+  assert.equal(merged.steps.get('B'), 2_000)
+  assert.equal(merged.totalMs, 6_000)
+
+  // A finished plan that comes back with fresh steps is a new task, so timing restarts.
+  const finished = planState(
+    parsePlanArguments({
+      steps: [{ text: 'A', status: 'completed' }, { text: 'B', status: 'completed' }],
+    }) as Plan,
+  )
+  const restarted = planState(
+    parsePlanArguments({
+      steps: [{ text: 'A', status: 'pending' }, { text: 'B', status: 'pending' }],
+    }) as Plan,
+  )
+  assert.equal(planTiming(restarted, planTiming(finished, folded)).totalMs, 0)
+
+  // A plan that shares no step also starts from zero.
+  const unrelated = planState(
+    parsePlanArguments({
+      steps: [{ text: 'C', status: 'pending' }, { text: 'D', status: 'pending' }],
+    }) as Plan,
+  )
+  assert.equal(planTiming(unrelated, folded).totalMs, 0)
+})
+
+test('round-trips the timing kept across a reload and rejects a damaged entry', () => {
+  const timing: PlanTiming = {
+    texts: ['A', 'B'],
+    steps: new Map([['A', 4_000], ['B', 1_500]]),
+    totalMs: 5_500,
+    complete: false,
+  }
+  const parsed = parsePlanTiming(serializePlanTiming(timing))
+
+  assert.equal(parsed?.totalMs, 5_500)
+  assert.deepEqual([...(parsed?.steps ?? new Map())], [['A', 4_000], ['B', 1_500]])
+  assert.deepEqual(parsed?.texts, ['A', 'B'])
+  assert.equal(parsed?.complete, false)
+  assert.equal(
+    parsePlanTiming({ texts: ['A'], steps: { A: -1 }, totalMs: 0, complete: false }),
+    undefined,
+  )
+  assert.equal(parsePlanTiming({ texts: [1], steps: {}, totalMs: 0, complete: false }), undefined)
+  assert.equal(parsePlanTiming('nope'), undefined)
 })
