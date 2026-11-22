@@ -269,9 +269,9 @@ button:disabled, select:disabled {
     background: color-mix(in srgb, var(--canvas) 80%, var(--ink));
   }
   .tool-call {
-    border-color: var(--line-strong);
-    background: color-mix(in srgb, var(--surface) 60%, var(--canvas));
-    color: color-mix(in srgb, var(--ink) 80%, var(--muted));
+    border-color: color-mix(in srgb, var(--accent) 32%, var(--line-strong));
+    background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+    color: color-mix(in srgb, var(--ink) 88%, var(--muted));
   }
   .tool-call.error {
     border-color: color-mix(in srgb, var(--danger) 40%, var(--canvas));
