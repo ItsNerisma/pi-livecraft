@@ -163,8 +163,6 @@ export function PlanPanel(
         <ol className='plan-steps'>
           {plan.plan.steps.map((step, index) => {
             const duration = durationOf(step)
-            const timed = duration > 0 || step.activeMs !== undefined
-              || step.status === 'in_progress'
             return (
               <li
                 className='plan-step'
@@ -173,9 +171,7 @@ export function PlanPanel(
               >
                 <span aria-hidden='true' className='plan-step-marker'>{markers[step.status]}</span>
                 <span className='plan-step-text'>{step.text}</span>
-                {timed && (
-                  <span className='plan-step-duration'>{formatPlanDuration(duration)}</span>
-                )}
+                <span className='plan-step-duration'>{formatPlanDuration(duration)}</span>
                 <span className='plan-step-status'>{statusLabels[step.status]}</span>
               </li>
             )

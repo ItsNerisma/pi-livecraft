@@ -32,7 +32,7 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 
 `shared/plan-clock.ts` measures active time for the plan as a whole and for each step. The clock only runs between `agent_start` and `agent_settled`, and the plan total stops once every step is done, so a plan that waits for the user's next message stops counting. The extension folds the elapsed time at each transition and at each settle, and reports the plan total as `activeMs` alongside the `recordedAt` instant and the per-step `activeMs` in `details`.
 
-- the header always shows the plan total, including `0s` before the first second; each row shows its step's time once the step has started;
+- the header always shows the plan total, including `0s` before the first second; each row shows its step's time, `0s` until the step receives any;
 - between updates the panel runs the timer locally, and each payload raises the known time to the authoritative value;
 - a snapshot refresh can resend a payload older than time the panel already folded, so the panel keeps the larger value until Pi reports more;
 - replacing a step with different text starts a new step, so the old time goes with it;
