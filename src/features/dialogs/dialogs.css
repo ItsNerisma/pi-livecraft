@@ -17,15 +17,19 @@
 }
 
 .ask-user-question-backdrop .ask-user-question {
-  max-height: min(60vh, 600px);
+  /* Fixed header, tabs and footer: only the question body scrolls, so actions stay reachable. */
+  display: flex;
+  flex-direction: column;
+  max-height: min(calc(100dvh - 40px), 760px);
   margin: 0;
   border-radius: 14px;
   box-shadow: var(--shadow);
-  overflow: auto;
+  overflow: hidden;
   animation: askUserQuestionEnter 300ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .ask-user-question-heading {
+  flex: 0 0 auto;
   padding: 15px 17px 13px;
   border-bottom: 1px solid var(--line);
   background: var(--surface);
@@ -59,6 +63,7 @@
 }
 .ask-user-question-tabs {
   display: flex;
+  flex: 0 0 auto;
   gap: 6px;
   overflow-x: auto;
   padding: 10px 12px;
@@ -109,6 +114,9 @@
   font-size: 10px;
 }
 .ask-user-question-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   padding: 20px 17px;
 }
 .ask-user-question fieldset {
@@ -142,7 +150,7 @@
 }
 .ask-user-options {
   display: grid;
-  gap: 7px;
+  gap: 8px;
 }
 .ask-user-options button, .option-list button {
   border: 1px solid var(--line);
@@ -161,7 +169,7 @@
   grid-template-columns: 20px minmax(0, 1fr);
   gap: 10px;
   width: 100%;
-  padding: 11px;
+  padding: 12px;
 }
 .ask-user-options button:hover, .option-list button:hover {
   border-color: var(--accent);
@@ -192,18 +200,23 @@
   border-color: var(--accent);
   background: var(--accent);
 }
+/* Multi-select answers stack, so the marker reads as a checkbox rather than a radio. */
+.ask-user-options.multiple .ask-user-option-mark {
+  border-radius: 5px;
+}
 .ask-user-options button > span:last-child {
   display: grid;
   gap: 3px;
 }
 .ask-user-options strong {
   font-size: 13px;
+  line-height: 1.35;
 }
 .ask-user-options small {
   color: var(--muted);
   font-size: 12px;
   font-weight: 400;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 .ask-user-question textarea, .modal textarea {
   width: 100%;
@@ -214,6 +227,12 @@
   padding: 10px 11px;
   background: var(--surface);
   color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ask-user-question textarea::placeholder {
+  color: var(--subtle);
 }
 .ask-user-question textarea:focus {
   outline: 0;
@@ -224,9 +243,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
   gap: 8px;
   border-top: 1px solid var(--line);
-  padding: 10px 12px;
+  padding: 11px 17px;
   background: var(--canvas);
 }
 .ask-user-question-actions > div {
@@ -234,17 +255,35 @@
   gap: 8px;
 }
 .ask-user-question-actions button, .modal-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
   border: 1px solid var(--line-strong);
   border-radius: 8px;
-  padding: 8px 11px;
+  padding: 0 12px;
   background: var(--surface);
   color: var(--ink);
   font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
   transition:
     border-color 180ms ease,
     background 180ms ease,
+    color 180ms ease,
     transform 180ms ease,
     box-shadow 180ms ease;
+}
+/* Cancel is a quiet escape hatch; the step actions carry the weight. */
+.ask-user-question-actions > button {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+.ask-user-question-actions > button:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
 }
 .ask-user-question-actions button:hover:not(:disabled) {
   transform: translateY(-1px);
@@ -253,11 +292,17 @@
 .ask-user-question-actions button:active:not(:disabled) {
   transform: scale(0.97);
 }
-.modal-actions button.primary, .ask-user-question-actions > div button.primary {
+.modal-actions button.primary, .ask-user-question-actions button.primary {
   border-color: var(--accent);
   background: var(--accent);
-  color: var(--surface);
-  font-weight: 750;
+  color: var(--on-accent);
+  font-weight: 700;
+}
+.modal-actions button.primary:hover:not(:disabled),
+.ask-user-question-actions button.primary:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 26%, transparent);
 }
 .ask-user-question-actions button:focus-visible,
 .ask-user-options button:focus-visible,
@@ -267,6 +312,9 @@
 }
 .ask-user-question-actions button:disabled {
   opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 /* Session and minimize actions in heading */

@@ -137,6 +137,7 @@ export function AskUserQuestionDialog(
     >
       <section
         aria-labelledby='ask-user-question-title'
+        aria-modal='true'
         className='ask-user-question'
         role='dialog'
         onClick={(e) => e.stopPropagation()}
@@ -207,7 +208,9 @@ export function AskUserQuestionDialog(
                 ? 'Multiple answers possible'
                 : 'Choose an answer or write your own'}
             </p>
-            <div className='ask-user-options'>
+            <div
+              className={question.multiSelect ? 'ask-user-options multiple' : 'ask-user-options'}
+            >
               {question.options.map((option) => {
                 const selected = selectedOptions[activeQuestion].includes(option.label)
                 return (
@@ -259,12 +262,18 @@ export function AskUserQuestionDialog(
             )}
             {lastQuestion
               ? (
-                <button disabled={!complete} onClick={() => void respond(false)} type='button'>
+                <button
+                  className='primary'
+                  disabled={!complete}
+                  onClick={() => void respond(false)}
+                  type='button'
+                >
                   Submit answers
                 </button>
               )
               : (
                 <button
+                  className='primary'
                   disabled={!isAnswered(activeQuestion)}
                   onClick={() => setActiveQuestion((index) => index + 1)}
                   type='button'

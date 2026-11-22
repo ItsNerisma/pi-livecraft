@@ -215,9 +215,15 @@
   .composer {
     margin-bottom: 10px;
   }
+  .ask-user-question-backdrop {
+    padding: 10px;
+  }
   .ask-user-question {
-    max-height: 52vh;
+    max-height: calc(100dvh - 20px);
     margin-bottom: 8px;
+  }
+  .ask-user-question-actions {
+    padding: 10px 12px;
   }
   .composer-info {
     align-items: flex-start;
