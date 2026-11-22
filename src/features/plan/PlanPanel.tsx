@@ -4,7 +4,7 @@ import { readPlanTiming, writePlanTiming } from './plan-clock-store.ts'
 import {
   formatPlanDuration,
   planIdentity,
-  planTickBase,
+  planRunBase,
   planTiming,
   type PlanState,
   type PlanTiming,
@@ -51,31 +51,50 @@ export function PlanPanel(
     setNow(Date.now())
   }, [plan])
 
-  // Run the clock only while Pi works; fold the live window into the plan and its current step.
-  // The base never re-counts time a restored timing already covers, so a reload during a run
-  // resumes the timer exactly where it was instead of restarting or doubling it.
+  // Run the clock only while Pi works. The live window covers exactly what no payload reports:
+  // from the payload's recorded instant while running, and only the settle folds the tail —
+  // so a snapshot refresh never re-counts folded time and an idle wait is never billed.
+  const mountedRef = useRef(false)
+  const wasRunningRef = useRef(false)
+  const liveBaseRef = useRef<number | undefined>(undefined)
   useEffect(() => {
-    if (!running) return
-    const startedAt = planTickBase(plan.plan.recordedAt, restored?.savedAt, Date.now())
-    setActiveSince(startedAt)
-    setNow(Date.now())
-    return () => {
-      const elapsed = Date.now() - startedAt
+    const first = !mountedRef.current
+    const wasRunning = wasRunningRef.current
+    mountedRef.current = true
+    wasRunningRef.current = running
+    if (!running) {
+      // Pi settled: fold the uncovered tail once, then stop the clock for good.
+      const base = liveBaseRef.current
+      liveBaseRef.current = undefined
       setActiveSince(undefined)
+      if (base === undefined || plan.complete) return
+      const elapsed = Date.now() - base
       if (elapsed <= 0) return
       const step = plan.plan.steps.find(({ status }) => status === 'in_progress')?.text
       setTiming((current) => {
         const steps = new Map(current.steps)
-        if (step !== undefined && !plan.complete)
-          steps.set(step, (steps.get(step) ?? 0) + elapsed)
+        if (step !== undefined) steps.set(step, (steps.get(step) ?? 0) + elapsed)
         return {
           texts: current.texts,
           steps,
-          totalMs: plan.complete ? current.totalMs : current.totalMs + elapsed,
+          totalMs: current.totalMs + elapsed,
           complete: current.complete,
         }
       })
+      return
     }
+    const now = Date.now()
+    const startedAt = planRunBase(
+      first,
+      wasRunning,
+      plan.plan.recordedAt,
+      restored?.savedAt,
+      liveBaseRef.current,
+      now,
+    )
+    liveBaseRef.current = startedAt
+    setActiveSince(startedAt)
+    setNow(now)
   }, [plan, restored, running])
 
   // The total keeps running while agents work on an unfinished plan, even between two steps.

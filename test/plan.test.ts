@@ -24,6 +24,7 @@ import {
   planFromDisplayedConversation,
   planFromMessages,
   planIdentity,
+  planRunBase,
   planState,
   planStateFromDetails,
 } from '../src/features/plan/plan-state.ts'
@@ -474,6 +475,20 @@ test('resumes the live clock without re-counting restored time', () => {
   // A future instant never counts time that has not happened yet.
   assert.equal(planTickBase(70_000, undefined, 62_000), 62_000)
   assert.equal(planTickBase(undefined, undefined, 62_000), 62_000)
+})
+
+test('follows the payload instant while running and never bills an idle wait', () => {
+  // A panel mounted mid-run resumes at the later covered instant, like a reload.
+  assert.equal(planRunBase(true, false, 8_000, 9_000, undefined, 10_000), 9_000)
+  // While running the clock follows the payload instant its timings are accurate to, never
+  // earlier than the base it already runs from, so a re-delivered payload cannot re-count
+  // the window a restored timing covers.
+  assert.equal(planRunBase(false, true, 9_500, 9_000, 9_000, 10_000), 9_500)
+  assert.equal(planRunBase(false, true, 9_500, 9_000, 9_800, 10_000), 9_800)
+  // A payload without timings keeps the previous base.
+  assert.equal(planRunBase(false, true, undefined, 9_000, 9_200, 10_000), 9_200)
+  // A run resumed after a pause starts fresh, so the idle wait is never billed to the plan.
+  assert.equal(planRunBase(false, false, 8_000, 9_000, 8_000, 10_000), 10_000)
 })
 
 test('rejects a stored timing that has no usable save instant', () => {

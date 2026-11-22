@@ -179,6 +179,27 @@ export function planTickBase(
   return Math.min(Math.max(recordedAt ?? now, savedAt ?? 0), now)
 }
 
+/**
+ * Instant the panel's live clock runs from. The first run of a mounted panel resumes at the
+ * later of the restored save and the payload instants; a run resumed after a pause starts
+ * fresh, so an idle wait is never billed; and a continuing run follows the later of the
+ * payload's `recordedAt` and the base it already runs from — the instant its reported timings
+ * are accurate to, never earlier, so a re-delivered payload or a dev double-mount cannot
+ * re-count a window the restored timing already covers.
+ */
+export function planRunBase(
+  first: boolean,
+  runningBefore: boolean,
+  recordedAt: number | undefined,
+  savedAt: number | undefined,
+  previousBase: number | undefined,
+  now: number,
+): number {
+  if (first) return planTickBase(recordedAt, savedAt, now)
+  if (!runningBefore) return now
+  return Math.max(recordedAt ?? 0, previousBase ?? 0) || now
+}
+
 /** Formats a plan duration as `42s`, `3:07`, or `1:02:09` so a running timer stays short. */
 export function formatPlanDuration(
   ms: number,
