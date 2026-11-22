@@ -1,19 +1,8 @@
-/** Title marker shown while an unseen agent completion waits in the tab. */
-const attentionPrefix = '● '
 /** Discord-style unread badge drawn over the current favicon. */
 const badgeColor = '#f23f43'
 const canvasSize = 64
 const badgeCenterRatio = 0.78
 const badgeRadiusRatio = 0.22
-
-/**
- * Removes the attention marker from the current document title.
- * Reading the live title keeps the original name authoritative instead of duplicating it here.
- */
-function baseTitle(): string {
-  const title = document.title
-  return title.startsWith(attentionPrefix) ? title.slice(attentionPrefix.length) : title
-}
 
 /** Reports whether the user is currently watching this tab and its window. */
 export function tabUnwatched(): boolean {
@@ -86,13 +75,11 @@ function restoreFavicons(): void {
 }
 
 /**
- * Shows or clears the unattended-completion marker in the browser tab.
- * The title updates synchronously; the favicon badge appears once the source icon is rasterised.
- * Idempotent: clearing reads the base title and the captured favicon instead of cached copies.
+ * Shows or clears the unattended-completion badge on the favicon. The title is left untouched.
+ * Idempotent: clearing reuses the hrefs captured before the badge replaced them.
  */
 export function setTabAttention(attention: boolean): void {
   attentionActive = attention
-  document.title = attention ? `${attentionPrefix}${baseTitle()}` : baseTitle()
   if (!attention) {
     restoreFavicons()
     return
