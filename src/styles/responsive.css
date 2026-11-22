@@ -85,6 +85,11 @@
   .conversation {
     padding: 28px 20px;
   }
+  .plan-panel {
+    /* Stay aligned with the message column and keep equal gaps above and below. */
+    margin-inline: 20px;
+    margin-bottom: 28px;
+  }
   .composer, .ask-user-question {
     width: calc(100% - 32px);
   }
@@ -196,6 +201,10 @@
   }
   .conversation {
     padding: 20px 12px;
+  }
+  .plan-panel {
+    margin-inline: 12px;
+    margin-bottom: 20px;
   }
   .message.assistant {
     padding-inline: 2px;

@@ -9,8 +9,12 @@ import {
   planVersion,
   planStepTextLimit,
   type Plan,
+  type PlanStep,
+  type PlanStepStatus,
 } from '../shared/plan.ts'
+import { PlanClock } from '../shared/plan-clock.ts'
 import {
+  formatPlanDuration,
   planFromMessages,
   planIdentity,
   planState,
@@ -22,6 +26,10 @@ function planArguments(...statuses: Array<'pending' | 'in_progress' | 'completed
   return {
     steps: statuses.map((status, index) => ({ text: `Step ${index + 1}`, status })),
   }
+}
+
+function stepList(...statuses: PlanStepStatus[]): PlanStep[] {
+  return statuses.map((status, index) => ({ text: String.fromCharCode(65 + index), status }))
 }
 
 function planResult(details: unknown) {
@@ -180,4 +188,96 @@ test('describes a committed plan in the conversation thread', () => {
   assert.equal(detailed.headerDetail?.text, '1/3 · Step 2')
   assert.equal(detailed.headerDetail?.title, '1/3 · Step 2')
   assert.deepEqual(invalid, {})
+})
+
+test('reads reported active time from the tool result only', () => {
+  const steps = stepList('completed', 'in_progress')
+  const details = {
+    protocol: planProtocol,
+    version: planVersion,
+    recordedAt: 1_000,
+    steps: [{ ...steps[0], activeMs: 4_000 }, { ...steps[1], activeMs: 1_500 }],
+  }
+
+  const plan = parsePlanDetails(details)
+  assert.equal(plan?.recordedAt, 1_000)
+  assert.deepEqual(plan?.steps.map((step) => step.activeMs), [4_000, 1_500])
+
+  // An unusable timing never hides a plan the interface can still show.
+  const tolerant = parsePlanDetails({
+    ...details,
+    recordedAt: 'soon',
+    steps: [
+      { text: 'A', status: 'pending', activeMs: -5 },
+      { text: 'B', status: 'pending', activeMs: 'long' },
+    ],
+  })
+  assert.equal(tolerant?.recordedAt, undefined)
+  assert.deepEqual(tolerant?.steps.map((step) => step.activeMs), [undefined, undefined])
+
+  // The model supplies no timings, even when it sends extra fields.
+  assert.deepEqual(
+    parsePlanArguments({
+      steps: [
+        { text: 'A', status: 'pending', activeMs: 9_999 },
+        { text: 'B', status: 'pending' },
+      ],
+    })
+      ?.steps
+      .map((step) => step.activeMs),
+    [undefined, undefined],
+  )
+})
+
+test('bills only active time to the step that was running', () => {
+  const clock = new PlanClock()
+  clock.start(0)
+  clock.commit(stepList('in_progress', 'pending'), 0)
+  clock.settle(1_000)
+  // One minute of waiting for the user is not billed to the step in progress.
+  clock.start(61_000)
+  const advanced = clock.commit(stepList('completed', 'in_progress'), 63_000)
+
+  assert.deepEqual(advanced.map((step) => step.activeMs), [3_000, undefined])
+
+  clock.settle(63_500)
+  const finished = clock.commit(stepList('completed', 'completed'), 64_000)
+
+  // The half second between the settle and the next commit is not active time either.
+  assert.deepEqual(finished.map((step) => step.activeMs), [3_000, 500])
+})
+
+test('restores timings from a resumed plan and drops the ones a step replacement removes', () => {
+  const restored = new PlanClock()
+  restored.restore([
+    { text: 'A', status: 'completed', activeMs: 4_000 },
+    { text: 'B', status: 'in_progress' },
+  ])
+  restored.start(1_000)
+
+  assert.deepEqual(
+    restored.commit(stepList('completed', 'completed'), 3_000).map((step) => step.activeMs),
+    [4_000, 2_000],
+  )
+
+  const replanned = new PlanClock()
+  replanned.restore([
+    { text: 'A', status: 'completed', activeMs: 4_000 },
+    { text: 'B', status: 'in_progress' },
+  ])
+
+  assert.deepEqual(
+    replanned
+      .commit([{ text: 'C', status: 'pending' }, { text: 'D', status: 'pending' }], 1_000)
+      .map((step) => step.activeMs),
+    [undefined, undefined],
+  )
+})
+
+test('formats plan durations as a compact clock', () => {
+  assert.equal(formatPlanDuration(0), '0s')
+  assert.equal(formatPlanDuration(42_900), '42s')
+  assert.equal(formatPlanDuration(187_000), '3:07')
+  assert.equal(formatPlanDuration(3_600_000), '1:00:00')
+  assert.equal(formatPlanDuration(3_729_000), '1:02:09')
 })

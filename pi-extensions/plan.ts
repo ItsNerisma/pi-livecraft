@@ -1,13 +1,18 @@
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
+import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent'
 import { Type } from 'typebox'
+import { isObject } from '../shared/is-object.ts'
+import { PlanClock } from '../shared/plan-clock.ts'
 import {
   parsePlanArguments,
+  parsePlanDetails,
   planMaximumSteps,
   planMinimumSteps,
   planStepStatuses,
   planStepTextLimit,
   type Plan,
 } from '../shared/plan.ts'
+
+const toolName = 'update_plan'
 
 const rejectedPlanMessage =
   `The plan was rejected. Send the complete plan with ${planMinimumSteps}-${planMaximumSteps} steps, at most one in_progress, and at most ${planStepTextLimit} characters per step.`
@@ -18,6 +23,28 @@ const planPolicy =
 
 /** Registers the tool that commits and updates the macro plan shown above the composer. */
 export default function registerPlan(pi: ExtensionAPI): void {
+  const clock = new PlanClock()
+
+  /** Restores accumulated timings after a resume, reload, or fork without any extra storage. */
+  function restore(ctx: ExtensionContext): void {
+    clock.restore([])
+    const entries = ctx.sessionManager.getBranch()
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+      const entry = entries[index]
+      const message = entry.type === 'message' ? entry.message : undefined
+      if (!isObject(message) || message.role !== 'toolResult') continue
+      if (message.toolName !== toolName || message.isError === true) continue
+      const plan = parsePlanDetails(message.details)
+      if (!plan) continue
+      clock.restore(plan.steps)
+      return
+    }
+  }
+
+  pi.on('agent_start', () => clock.start(Date.now()))
+  pi.on('agent_settled', () => clock.settle(Date.now()))
+  pi.on('session_start', (_event, ctx) => restore(ctx))
+
   pi.on('before_agent_start', (event) => {
     const options = event.systemPromptOptions
     if (!options) return
@@ -25,13 +52,14 @@ export default function registerPlan(pi: ExtensionAPI): void {
   })
 
   pi.registerTool({
-    name: 'update_plan',
+    name: toolName,
     label: 'Update Plan',
     description: 'Commit the macro plan for the current task so the user can follow your steps.',
     promptSnippet: 'Commit and update the macro plan for the current task',
     promptGuidelines: [
       'Call update_plan before the first tool call of every task that needs more than two steps, then keep the plan current.',
       'Update update_plan when a step starts or finishes, never between steps, and always send the complete plan.',
+      'Write every update_plan step in the language the user is writing in.',
       `Skip update_plan for a single-step request and for a follow-up that finishes the plan already committed. Send ${planMinimumSteps}-${planMaximumSteps} steps.`,
     ],
     parameters: Type.Object({
@@ -49,8 +77,14 @@ export default function registerPlan(pi: ExtensionAPI): void {
           isError: true,
         }
       }
+      const now = Date.now()
+      const steps = clock.commit(plan.steps, now)
       // `details` reaches Pi Livecraft and stays out of the model context.
-      return { content: [{ type: 'text' as const, text: acknowledge(plan) }], details: plan }
+      const committed: Plan = { ...plan, recordedAt: now, steps }
+      return {
+        content: [{ type: 'text' as const, text: acknowledge(committed) }],
+        details: committed,
+      }
     },
   })
 }

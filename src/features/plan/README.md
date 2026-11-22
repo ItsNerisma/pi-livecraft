@@ -8,6 +8,7 @@ The plan panel shows the macro plan Pi committed for the current task, directly 
 
 - 2 to 8 steps, at most one `in_progress`, at most 120 characters per step;
 - statuses are `pending`, `in_progress`, `completed`, and `skipped`;
+- steps are written in the language the user writes in;
 - a rejected call returns an error to the model and keeps the previous plan;
 - the tool acknowledges one line of progress so the model never maintains its own count.
 
@@ -25,7 +26,18 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 - `complete` — every step is `completed` or `skipped`; the header reads "All steps done".
 - `paused` — Pi is not running and the plan is unfinished; the header carries a `paused` note instead of pretending the step is moving.
 
-`PlanPanel.tsx` owns folding: it stores the identity of the folded plan (`planIdentity()`, the step texts) in `localStorage`, so a status change keeps the panel folded and a different plan reopens once.
+`PlanPanel.tsx` owns folding: it stores the identity of the folded plan (`planIdentity()`, the step texts) in `localStorage`, so a status change keeps the panel folded and a different plan reopens once. The panel takes the width of the conversation's message column, not the wider composer, and keeps the same gap above and below.
+
+## Timing
+
+`shared/plan-clock.ts` measures active time per step. The clock only runs between `agent_start` and `agent_settled`, so a plan that waits for the user's next message stops counting; the extension folds the elapsed time at each transition and at each settle, and reports it as `activeMs` per step with the `recordedAt` instant in `details`.
+
+- the header shows the total of the steps' active time, each row shows its own;
+- between updates the panel runs the timer locally, and each payload replaces that estimate with the authoritative value;
+- replacing a step with different text starts a new step, so the old time goes with it;
+- after a reload, accumulated time comes back from the session; only the part of the running step elapsed after the last update restarts from zero.
+
+`PlanClock` is covered in `test/plan.test.ts` with the pause, restore, and replacement cases.
 
 ## Deliberate limits
 
@@ -33,4 +45,4 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 - The conversation still renders the call as a compact `3/6 · current step` card in semi-detailed and detailed views.
 - Pi's terminal interface shows only the one-line acknowledgement; the panel is a Livecraft surface.
 
-Focused coverage: `test/plan.test.ts`.
+Focused coverage: `test/plan.test.ts` (parsing, derivation, timing, presentation).

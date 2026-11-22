@@ -58,3 +58,16 @@ export function planFromMessages(messages: JsonObject[]): PlanState | undefined 
 export function planIdentity(state: PlanState): string {
   return state.plan.steps.map(({ text }) => text).join('\u0000')
 }
+
+/** Formats a plan duration as `42s`, `3:07`, or `1:02:09` so a running timer stays short. */
+export function formatPlanDuration(ms: number): string {
+  const seconds = Math.max(0, Math.floor(ms / 1000))
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}:${twoDigits(seconds % 60)}`
+  return `${Math.floor(minutes / 60)}:${twoDigits(minutes % 60)}:${twoDigits(seconds % 60)}`
+}
+
+function twoDigits(value: number): string {
+  return String(value).padStart(2, '0')
+}
