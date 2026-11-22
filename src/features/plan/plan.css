@@ -1,5 +1,6 @@
 .plan-panel {
   /* Match the conversation's message column and its trailing gap, not the wider composer. */
+  --plan-tone: var(--accent);
   margin: 0 max(28px, calc((100% - 900px) / 2)) 16px;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -8,6 +9,7 @@
   color: var(--ink);
 }
 .plan-panel.is-complete {
+  --plan-tone: var(--success);
   border-color: color-mix(in srgb, var(--success) 26%, var(--line));
 }
 .plan-heading {
@@ -16,17 +18,20 @@
   gap: 8px;
   width: 100%;
   min-width: 0;
-  min-height: 32px;
+  min-height: 34px;
   border: 0;
-  padding: 0 10px;
-  background: transparent;
+  padding: 0 12px;
+  background: color-mix(in srgb, var(--plan-tone) 5%, var(--surface-raised));
   color: inherit;
   font: inherit;
   text-align: left;
   transition: background-color 180ms ease-out;
 }
+.plan-panel:not(.is-collapsed) .plan-heading {
+  border-bottom: 1px solid var(--line);
+}
 .plan-heading:hover {
-  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  background: color-mix(in srgb, var(--plan-tone) 9%, var(--surface-raised));
 }
 .plan-heading:active {
   transform: scale(0.995);
@@ -46,20 +51,20 @@
 }
 .plan-title {
   flex: 0 0 auto;
-  color: var(--accent);
-  font: 600 11px/1.4 ui-sans-serif, system-ui, sans-serif;
-  letter-spacing: 0.04em;
+  color: var(--plan-tone);
+  font: 700 11px/1.4 ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 .plan-progress {
   flex: 0 0 auto;
-  color: var(--subtle);
-  font: 11px/1.4 ui-monospace, monospace;
+  color: var(--muted);
+  font: 600 11px/1.4 ui-monospace, monospace;
 }
 .plan-total {
   flex: 0 0 auto;
-  color: var(--subtle);
-  font: 11px/1.4 ui-monospace, monospace;
+  color: color-mix(in srgb, var(--ink) 76%, var(--canvas));
+  font: 600 11px/1.4 ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
 }
 .plan-current {
@@ -89,8 +94,7 @@
   max-height: 168px;
   margin: 0;
   overflow-y: auto;
-  border-top: 1px solid var(--panel-line);
-  padding: 8px 10px 10px;
+  padding: 8px 12px 10px;
   list-style: none;
 }
 .plan-step {
