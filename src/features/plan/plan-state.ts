@@ -116,6 +116,24 @@ export function parsePlanTiming(value: unknown): PlanTiming | undefined {
   return { texts, steps, totalMs: value.totalMs, complete: value.complete }
 }
 
+/** The folded timing plus the instant it was accurate, so a reload never re-counts that window. */
+export interface StoredPlanTiming {
+  timing: PlanTiming
+  savedAt: number
+}
+
+export function serializeStoredPlanTiming(timing: PlanTiming, savedAt: number): JsonObject {
+  return { savedAt, timing: serializePlanTiming(timing) }
+}
+
+/** Rejects a damaged entry instead of showing invented time. */
+export function parseStoredPlanTiming(value: unknown): StoredPlanTiming | undefined {
+  if (!isObject(value) || typeof value.savedAt !== 'number' || !Number.isFinite(value.savedAt))
+    return undefined
+  const timing = parsePlanTiming(value.timing)
+  return timing ? { timing, savedAt: value.savedAt } : undefined
+}
+
 function startsNewPlan(current: PlanTiming, plan: PlanState): boolean {
   const sharesText = plan.plan.steps.some(({ text }) => current.texts.includes(text))
   if (!sharesText) return current.texts.length > 0
@@ -129,8 +147,22 @@ function isActiveTime(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
 }
 
-/** Formats a plan duration as `42s`, `3:07`, or `1:02:09` so a running timer stays short. */
-export function formatPlanDuration(ms: number): string {
+/**
+ * Instant the panel's live clock must start from. A restored timing already covers everything up to
+ * its `savedAt`, so the tick continues from the later of that instant and the payload's
+ * `recordedAt`; a future instant is clamped rather than counting time that has not happened.
+ */
+export function planTickBase(
+  recordedAt: number | undefined,
+  savedAt: number | undefined,
+  now: number,
+): number {
+  return Math.min(Math.max(recordedAt ?? now, savedAt ?? 0), now)
+}
+
+/** Formats a plan duration as `42s`, `3:07`, or `1:02:09` so a running timer stays short. */ export function formatPlanDuration(
+  ms: number,
+): string {
   const seconds = Math.max(0, Math.floor(ms / 1000))
   if (seconds < 60) return `${seconds}s`
   const minutes = Math.floor(seconds / 60)

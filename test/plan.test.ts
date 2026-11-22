@@ -16,6 +16,8 @@ import { PlanClock } from '../shared/plan-clock.ts'
 import {
   formatPlanDuration,
   parsePlanTiming,
+  parseStoredPlanTiming,
+  planTickBase,
   planTiming,
   serializePlanTiming,
   type PlanTiming,
@@ -441,4 +443,29 @@ test('round-trips the timing kept across a reload and rejects a damaged entry', 
   )
   assert.equal(parsePlanTiming({ texts: [1], steps: {}, totalMs: 0, complete: false }), undefined)
   assert.equal(parsePlanTiming('nope'), undefined)
+})
+
+test('resumes the live clock without re-counting restored time', () => {
+  // Reload during a run after a save at 60s: the restored total already covers up to that instant.
+  assert.equal(planTickBase(1_000, 60_000, 62_000), 60_000)
+  // Without a restored timing, the payload instant is the base.
+  assert.equal(planTickBase(1_000, undefined, 62_000), 1_000)
+  // A future instant never counts time that has not happened yet.
+  assert.equal(planTickBase(70_000, undefined, 62_000), 62_000)
+  assert.equal(planTickBase(undefined, undefined, 62_000), 62_000)
+})
+
+test('rejects a stored timing that has no usable save instant', () => {
+  const timing = serializePlanTiming({
+    texts: ['A', 'B'],
+    steps: new Map([['A', 1_000], ['B', 0]]),
+    totalMs: 1_000,
+    complete: false,
+  })
+
+  assert.equal(parseStoredPlanTiming({ savedAt: 5, timing })?.savedAt, 5)
+  assert.equal(parseStoredPlanTiming({ savedAt: 5, timing })?.timing.totalMs, 1_000)
+  assert.equal(parseStoredPlanTiming({ timing }), undefined)
+  assert.equal(parseStoredPlanTiming({ savedAt: 'now', timing }), undefined)
+  assert.equal(parseStoredPlanTiming(null), undefined)
 })

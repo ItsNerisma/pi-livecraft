@@ -37,13 +37,15 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 - a snapshot refresh can resend a payload older than time the panel already folded, so the panel keeps the larger value until Pi reports more;
 - replacing a step with different text starts a new step, so the old time goes with it;
 - a plan that shares no step with the previous one — or that starts with no finished step after a completed one — starts a fresh total, so a new task never inherits the previous clock;
-- a reload resumes the timer from the payload's `recordedAt` instant instead of restarting it, and `plan-clock-store.ts` keeps the folded time in browser storage on `pagehide`, so a paused plan also survives a refresh. A new turn clears that entry, so a later plan never inherits it.
+- a reload resumes the timer instead of restarting it: `planTickBase()` starts the live clock at the later of the payload's `recordedAt` and the stored `savedAt` instant, so the window a restored timing already covers is never counted twice;
+- `plan-clock-store.ts` keeps the folded time in browser storage on `pagehide`, so a paused plan also survives a refresh; a new turn clears that entry, so a later plan never inherits it.
 
 `PlanClock` is covered in `test/plan.test.ts` with the pause, completion, restore, and replacement cases.
 
 ## Deliberate limits
 
 - No server route, no manager change: the session file is the only store.
+- A blocking Pi dialog inside a run (`ask_user_question`, a confirmation) counts as active time: Pi keeps the run open, so neither the clock nor the panel can see the wait.
 - The conversation still renders the call as a compact `3/6 · current step` card in semi-detailed and detailed views.
 - Pi's terminal interface shows only the one-line acknowledgement; the panel is a Livecraft surface.
 

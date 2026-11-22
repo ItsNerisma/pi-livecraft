@@ -4,6 +4,7 @@ import { readPlanTiming, writePlanTiming } from './plan-clock-store.ts'
 import {
   formatPlanDuration,
   planIdentity,
+  planTickBase,
   planTiming,
   type PlanState,
   type PlanTiming,
@@ -36,10 +37,9 @@ export function PlanPanel(
   const identity = useMemo(() => planIdentity(plan), [plan])
   const [collapsed, setCollapsed] = useState(() => readCollapsedPlan() === identity)
   const [now, setNow] = useState(() => Date.now())
-  // A reload reopens the panel with the time it had folded, not with the older payload values.
-  const [timing, setTiming] = useState<PlanTiming>(() =>
-    planTiming(plan, readPlanTiming(sessionId))
-  )
+  // A reload reopens the panel with the time it had folded, plus the instant that time is from.
+  const [restored] = useState(() => readPlanTiming(sessionId))
+  const [timing, setTiming] = useState<PlanTiming>(() => planTiming(plan, restored?.timing))
   const [activeSince, setActiveSince] = useState<number | undefined>()
   const persistRef = useRef<() => void>(() => {})
 
@@ -52,11 +52,11 @@ export function PlanPanel(
   }, [plan])
 
   // Run the clock only while Pi works; fold the live window into the plan and its current step.
-  // `recordedAt` is the instant the payload's timings were taken, so a reload during a run
-  // resumes the timer where the last update left it instead of restarting it from zero.
+  // The base never re-counts time a restored timing already covers, so a reload during a run
+  // resumes the timer exactly where it was instead of restarting or doubling it.
   useEffect(() => {
     if (!running) return
-    const startedAt = Math.min(plan.plan.recordedAt ?? Date.now(), Date.now())
+    const startedAt = planTickBase(plan.plan.recordedAt, restored?.savedAt, Date.now())
     setActiveSince(startedAt)
     setNow(Date.now())
     return () => {
@@ -76,7 +76,7 @@ export function PlanPanel(
         }
       })
     }
-  }, [running, plan])
+  }, [plan, restored, running])
 
   // The total keeps running while agents work on an unfinished plan, even between two steps.
   const ticking = running && !plan.complete
@@ -99,12 +99,16 @@ export function PlanPanel(
       const steps = new Map(timing.steps)
       if (step !== undefined && elapsed > 0 && !plan.complete)
         steps.set(step, (steps.get(step) ?? 0) + elapsed)
-      writePlanTiming(sessionId, {
-        texts: timing.texts,
-        steps,
-        totalMs: plan.complete ? timing.totalMs : timing.totalMs + elapsed,
-        complete: timing.complete,
-      })
+      writePlanTiming(
+        sessionId,
+        {
+          texts: timing.texts,
+          steps,
+          totalMs: plan.complete ? timing.totalMs : timing.totalMs + elapsed,
+          complete: timing.complete,
+        },
+        Date.now(),
+      )
     }
   })
   useEffect(() => {

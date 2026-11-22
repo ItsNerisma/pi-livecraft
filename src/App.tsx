@@ -1262,6 +1262,7 @@ function App() {
                   <div className='composer-area'>
                     {plan && (
                       <PlanPanel
+                        key={selectedSession.id}
                         plan={plan}
                         running={selectedSession.status === 'running'}
                         sessionId={selectedSession.id}
