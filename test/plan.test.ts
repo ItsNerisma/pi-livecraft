@@ -32,6 +32,10 @@ function stepList(...statuses: PlanStepStatus[]): PlanStep[] {
   return statuses.map((status, index) => ({ text: String.fromCharCode(65 + index), status }))
 }
 
+function planOf(...steps: PlanStep[]): Plan {
+  return { protocol: planProtocol, version: planVersion, steps }
+}
+
 function planResult(details: unknown) {
   return {
     role: 'toolResult',
@@ -195,38 +199,40 @@ test('reads reported active time from the tool result only', () => {
   const details = {
     protocol: planProtocol,
     version: planVersion,
+    activeMs: 5_500,
     recordedAt: 1_000,
     steps: [{ ...steps[0], activeMs: 4_000 }, { ...steps[1], activeMs: 1_500 }],
   }
 
   const plan = parsePlanDetails(details)
+  assert.equal(plan?.activeMs, 5_500)
   assert.equal(plan?.recordedAt, 1_000)
   assert.deepEqual(plan?.steps.map((step) => step.activeMs), [4_000, 1_500])
 
   // An unusable timing never hides a plan the interface can still show.
   const tolerant = parsePlanDetails({
     ...details,
+    activeMs: 'soon',
     recordedAt: 'soon',
     steps: [
       { text: 'A', status: 'pending', activeMs: -5 },
       { text: 'B', status: 'pending', activeMs: 'long' },
     ],
   })
+  assert.equal(tolerant?.activeMs, undefined)
   assert.equal(tolerant?.recordedAt, undefined)
   assert.deepEqual(tolerant?.steps.map((step) => step.activeMs), [undefined, undefined])
 
   // The model supplies no timings, even when it sends extra fields.
-  assert.deepEqual(
-    parsePlanArguments({
-      steps: [
-        { text: 'A', status: 'pending', activeMs: 9_999 },
-        { text: 'B', status: 'pending' },
-      ],
-    })
-      ?.steps
-      .map((step) => step.activeMs),
-    [undefined, undefined],
-  )
+  const argumentsPlan = parsePlanArguments({
+    activeMs: 9_999,
+    steps: [
+      { text: 'A', status: 'pending', activeMs: 9_999 },
+      { text: 'B', status: 'pending' },
+    ],
+  })
+  assert.equal(argumentsPlan?.activeMs, undefined)
+  assert.deepEqual(argumentsPlan?.steps.map((step) => step.activeMs), [undefined, undefined])
 })
 
 test('bills only active time to the step that was running', () => {
@@ -238,40 +244,129 @@ test('bills only active time to the step that was running', () => {
   clock.start(61_000)
   const advanced = clock.commit(stepList('completed', 'in_progress'), 63_000)
 
-  assert.deepEqual(advanced.map((step) => step.activeMs), [3_000, undefined])
+  assert.deepEqual(advanced.steps.map((step) => step.activeMs), [3_000, undefined])
 
   clock.settle(63_500)
   const finished = clock.commit(stepList('completed', 'completed'), 64_000)
 
   // The half second between the settle and the next commit is not active time either.
-  assert.deepEqual(finished.map((step) => step.activeMs), [3_000, 500])
+  assert.deepEqual(finished.steps.map((step) => step.activeMs), [3_000, 500])
+})
+
+test('times the whole plan across pauses and freezes it once every step is done', () => {
+  const clock = new PlanClock()
+  clock.start(0)
+  const opened = clock.commit(stepList('in_progress', 'pending'), 0)
+  clock.settle(1_000)
+
+  clock.start(61_000)
+  const advanced = clock.commit(stepList('completed', 'in_progress'), 63_000)
+  clock.settle(63_500)
+  const finished = clock.commit(stepList('completed', 'completed'), 64_000)
+
+  clock.start(70_000)
+  clock.settle(90_000)
+  const idle = clock.commit(stepList('completed', 'completed'), 95_000)
+
+  assert.equal(opened.activeMs, 0)
+  assert.equal(advanced.activeMs, 3_000)
+  assert.equal(finished.activeMs, 3_500)
+  // A finished plan stops counting even if the agent keeps running.
+  assert.equal(idle.activeMs, 3_500)
 })
 
 test('restores timings from a resumed plan and drops the ones a step replacement removes', () => {
   const restored = new PlanClock()
-  restored.restore([
+  restored.restore(planOf(
     { text: 'A', status: 'completed', activeMs: 4_000 },
     { text: 'B', status: 'in_progress' },
-  ])
+  ))
   restored.start(1_000)
 
-  assert.deepEqual(
-    restored.commit(stepList('completed', 'completed'), 3_000).map((step) => step.activeMs),
-    [4_000, 2_000],
-  )
+  const continued = restored.commit(stepList('completed', 'completed'), 3_000)
+
+  assert.deepEqual(continued.steps.map((step) => step.activeMs), [4_000, 2_000])
+  // Without a reported plan total, the restored steps keep the clock going.
+  assert.equal(continued.activeMs, 6_000)
 
   const replanned = new PlanClock()
-  replanned.restore([
+  replanned.restore(planOf(
     { text: 'A', status: 'completed', activeMs: 4_000 },
     { text: 'B', status: 'in_progress' },
-  ])
+  ))
 
   assert.deepEqual(
     replanned
       .commit([{ text: 'C', status: 'pending' }, { text: 'D', status: 'pending' }], 1_000)
+      .steps
       .map((step) => step.activeMs),
     [undefined, undefined],
   )
+})
+
+test('restores the plan total and starts a fresh one for a different plan', () => {
+  const restored = new PlanClock()
+  restored.restore({
+    ...planOf(
+      { text: 'A', status: 'completed', activeMs: 4_000 },
+      { text: 'B', status: 'in_progress' },
+    ),
+    activeMs: 5_000,
+  })
+  restored.start(1_000)
+
+  assert.equal(restored.commit(stepList('completed', 'completed'), 3_000).activeMs, 7_000)
+
+  const replanned = new PlanClock()
+  replanned.restore({
+    ...planOf(
+      { text: 'A', status: 'completed', activeMs: 4_000 },
+      { text: 'B', status: 'in_progress' },
+    ),
+    activeMs: 5_000,
+  })
+  replanned.start(1_000)
+  const fresh = replanned.commit([
+    { text: 'C', status: 'in_progress' },
+    { text: 'D', status: 'pending' },
+  ], 3_000)
+
+  // The elapsed window belongs to the plan the new one replaces, so it starts from zero.
+  assert.equal(fresh.activeMs, 0)
+  assert.deepEqual(fresh.steps.map((step) => step.activeMs), [undefined, undefined])
+})
+
+test('starts a fresh total for a new task even when it reuses a step text', () => {
+  const finished = () => {
+    const clock = new PlanClock()
+    clock.start(0)
+    clock.commit([
+      { text: 'Read', status: 'in_progress' },
+      { text: 'Edit', status: 'pending' },
+    ], 0)
+    clock.settle(2_000)
+    clock.start(2_500)
+    clock.commit([
+      { text: 'Read', status: 'completed' },
+      { text: 'Edit', status: 'completed' },
+    ], 2_500)
+    clock.settle(3_000)
+    return clock
+  }
+
+  // Reopening the finished plan keeps the clock it already accumulated.
+  const reopened = finished().commit([
+    { text: 'Read', status: 'completed' },
+    { text: 'Edit', status: 'in_progress' },
+  ], 10_000)
+  assert.equal(reopened.activeMs, 2_000)
+
+  // A new task that happens to reuse the same first step starts from zero.
+  const next = finished().commit([
+    { text: 'Read', status: 'pending' },
+    { text: 'Ship', status: 'in_progress' },
+  ], 10_000)
+  assert.equal(next.activeMs, 0)
 })
 
 test('formats plan durations as a compact clock', () => {

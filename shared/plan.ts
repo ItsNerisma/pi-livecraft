@@ -21,6 +21,8 @@ export interface PlanStep {
 export interface Plan {
   protocol: typeof planProtocol
   version: typeof planVersion
+  /** Active time Pi spent on the whole plan; absent until the tool reports one. */
+  activeMs?: number
   /** Instant the reported `activeMs` values were accurate, in epoch milliseconds. */
   recordedAt?: number
   steps: PlanStep[]
@@ -40,8 +42,13 @@ export function parsePlanDetails(value: unknown): Plan | undefined {
     return undefined
   const plan = planFromSteps(value.steps, true)
   if (!plan) return undefined
+  const activeMs = activeTime(value.activeMs)
   const recordedAt = activeTime(value.recordedAt)
-  return recordedAt === undefined ? plan : { ...plan, recordedAt }
+  return {
+    ...plan,
+    ...(activeMs === undefined ? {} : { activeMs }),
+    ...(recordedAt === undefined ? {} : { recordedAt }),
+  }
 }
 
 function planFromSteps(value: unknown, withActiveTime: boolean): Plan | undefined {

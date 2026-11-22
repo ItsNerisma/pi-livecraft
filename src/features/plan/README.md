@@ -30,14 +30,16 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 
 ## Timing
 
-`shared/plan-clock.ts` measures active time per step. The clock only runs between `agent_start` and `agent_settled`, so a plan that waits for the user's next message stops counting; the extension folds the elapsed time at each transition and at each settle, and reports it as `activeMs` per step with the `recordedAt` instant in `details`.
+`shared/plan-clock.ts` measures active time for the plan as a whole and for each step. The clock only runs between `agent_start` and `agent_settled`, and the plan total stops once every step is done, so a plan that waits for the user's next message stops counting. The extension folds the elapsed time at each transition and at each settle, and reports the plan total as `activeMs` alongside the `recordedAt` instant and the per-step `activeMs` in `details`.
 
-- the header shows the total of the steps' active time, each row shows its own;
-- between updates the panel runs the timer locally, and each payload replaces that estimate with the authoritative value;
+- the header always shows the plan total, including `0s` before the first second; each row shows its step's time once the step has started;
+- between updates the panel runs the timer locally, and each payload raises the known time to the authoritative value;
+- a snapshot refresh can resend a payload older than time the panel already folded, so the panel keeps the larger value until Pi reports more;
 - replacing a step with different text starts a new step, so the old time goes with it;
+- a plan that shares no step with the previous one — or that starts with no finished step after a completed one — starts a fresh total, so a new task never inherits the previous clock;
 - after a reload, accumulated time comes back from the session; only the part of the running step elapsed after the last update restarts from zero.
 
-`PlanClock` is covered in `test/plan.test.ts` with the pause, restore, and replacement cases.
+`PlanClock` is covered in `test/plan.test.ts` with the pause, completion, restore, and replacement cases.
 
 ## Deliberate limits
 

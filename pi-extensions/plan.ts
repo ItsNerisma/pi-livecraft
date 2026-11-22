@@ -27,7 +27,7 @@ export default function registerPlan(pi: ExtensionAPI): void {
 
   /** Restores accumulated timings after a resume, reload, or fork without any extra storage. */
   function restore(ctx: ExtensionContext): void {
-    clock.restore([])
+    clock.restore()
     const entries = ctx.sessionManager.getBranch()
     for (let index = entries.length - 1; index >= 0; index -= 1) {
       const entry = entries[index]
@@ -36,7 +36,7 @@ export default function registerPlan(pi: ExtensionAPI): void {
       if (message.toolName !== toolName || message.isError === true) continue
       const plan = parsePlanDetails(message.details)
       if (!plan) continue
-      clock.restore(plan.steps)
+      clock.restore(plan)
       return
     }
   }
@@ -61,6 +61,7 @@ export default function registerPlan(pi: ExtensionAPI): void {
       'Update update_plan when a step starts or finishes, never between steps, and always send the complete plan.',
       'Write every update_plan step in the language the user is writing in.',
       `Skip update_plan for a single-step request and for a follow-up that finishes the plan already committed. Send ${planMinimumSteps}-${planMaximumSteps} steps.`,
+      'Keep each step text stable between updates so the interface can preserve its timing.',
     ],
     parameters: Type.Object({
       steps: Type.Array(Type.Object({
@@ -78,9 +79,9 @@ export default function registerPlan(pi: ExtensionAPI): void {
         }
       }
       const now = Date.now()
-      const steps = clock.commit(plan.steps, now)
+      const { steps, activeMs } = clock.commit(plan.steps, now)
       // `details` reaches Pi Livecraft and stays out of the model context.
-      const committed: Plan = { ...plan, recordedAt: now, steps }
+      const committed: Plan = { ...plan, activeMs, recordedAt: now, steps }
       return {
         content: [{ type: 'text' as const, text: acknowledge(committed) }],
         details: committed,
