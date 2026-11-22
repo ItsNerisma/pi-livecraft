@@ -21,6 +21,7 @@ import {
   planTiming,
   serializePlanTiming,
   type PlanTiming,
+  planFromDisplayedConversation,
   planFromMessages,
   planIdentity,
   planState,
@@ -184,6 +185,26 @@ test('reads the plan committed since the last user message', () => {
       { ...planResult(undefined), toolName: 'bash', details: { text: 'ls' } },
     ]),
     undefined,
+  )
+})
+
+test('a snapshot that lags a sent message cannot resurrect the plan it ended', () => {
+  const details = { ...planOf(...stepList('completed', 'completed')), activeMs: 0, recordedAt: 0 }
+  const history = [{ role: 'user', content: 'Go' }, planResult(details)]
+  const sentTurn = { id: 'live_1', message: { role: 'user', content: 'One more thing' } }
+
+  // The refresh races the server recording the sent message, so the finished plan stays ended.
+  assert.equal(planFromDisplayedConversation(history, [sentTurn]), undefined)
+  // Once the snapshot catches up and the new turn commits its own plan, that plan shows.
+  const replanned = { ...planOf(...stepList('pending', 'pending')), activeMs: 0, recordedAt: 1 }
+  assert.deepEqual(
+    planFromDisplayedConversation(
+      [...history, sentTurn.message, planResult(replanned)],
+      [sentTurn],
+    )
+      ?.plan
+      .steps,
+    planState(parsePlanDetails(replanned) as Plan).plan.steps,
   )
 })
 

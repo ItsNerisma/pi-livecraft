@@ -1,6 +1,10 @@
 import { isObject } from '../../../shared/is-object.ts'
 import { parsePlanDetails, type Plan } from '../../../shared/plan.ts'
 import type { JsonObject } from '../../../shared/types.ts'
+import {
+  conversationMessageEntries,
+  type LiveMessage,
+} from '../conversation/message-reconciliation.ts'
 import { toolResultInMessage } from '../conversation/tool-protocol.ts'
 
 /** Names the Pi tool whose result carries the committed plan. */
@@ -52,6 +56,21 @@ export function planFromMessages(messages: JsonObject[]): PlanState | undefined 
     if (state) return state
   }
   return undefined
+}
+
+/**
+ * Reads the last accepted plan from the displayed conversation: the snapshot merged with the
+ * optimistic turns still live in the interface. A refresh whose snapshot predates a just-sent
+ * user message therefore cannot resurrect the plan that message ended, while a caught-up
+ * snapshot shows the plan the new turn committed.
+ */
+export function planFromDisplayedConversation(
+  historyMessages: JsonObject[],
+  liveMessages: LiveMessage[],
+): PlanState | undefined {
+  return planFromMessages(
+    conversationMessageEntries(historyMessages, liveMessages).map(({ message }) => message),
+  )
 }
 
 /** Identifies a plan by its steps, so a status change keeps the panel's collapsed state. */

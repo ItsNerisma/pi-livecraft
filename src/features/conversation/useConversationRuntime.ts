@@ -10,7 +10,7 @@ import { activityForPiEvent, type Activity } from './activity.ts'
 import { advanceEventSequence } from './event-sequence.ts'
 import type { LiveMessage } from './message-reconciliation.ts'
 import {
-  planFromMessages,
+  planFromDisplayedConversation,
   planStateFromDetails,
   updatePlanToolName,
   type PlanState,
@@ -154,7 +154,7 @@ export function useConversationRuntime(
           snapshotSessionIdRef.current = sessionId
           setSnapshot(nextSnapshot)
           setSnapshotSessionId(sessionId)
-          setPlan(planFromMessages(nextSnapshot.messages))
+          setPlan(planFromDisplayedConversation(nextSnapshot.messages, liveMessagesRef.current))
           const latestLiveSequence = nextSnapshot.liveEvents.at(-1)?.sequence ?? 0
           if (latestLiveSequence > appliedPiEventSequenceRef.current) {
             clearLiveMessages()

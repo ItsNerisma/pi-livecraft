@@ -18,7 +18,7 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 
 - **Opening or reloading a session:** `planFromMessages()` in `plan-state.ts` reads the last accepted plan from `snapshot.messages`. Pi's active branch keeps pre-compaction entries, so the plan survives compaction, forking, and reopening.
 - **While Pi works:** `useConversationRuntime` reads the same payload from `tool_execution_end` and updates the panel immediately.
-- **Starting a new turn:** the runtime clears the plan when the composer adds an optimistic user message, and `planFromMessages()` ignores a plan older than the last user message. A plan committed after that message reappears.
+- **Starting a new turn:** the runtime clears the plan when the composer adds an optimistic user message, and `planFromMessages()` ignores a plan older than the last user message. The panel is re-derived from the displayed conversation — the snapshot merged with the optimistic turns still live in the interface — so a refresh whose snapshot predates the just-sent message cannot resurrect the plan that message ended; a plan committed after that message reappears.
 
 ## States
 
