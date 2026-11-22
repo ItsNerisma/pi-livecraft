@@ -160,7 +160,8 @@ export function planTickBase(
   return Math.min(Math.max(recordedAt ?? now, savedAt ?? 0), now)
 }
 
-/** Formats a plan duration as `42s`, `3:07`, or `1:02:09` so a running timer stays short. */ export function formatPlanDuration(
+/** Formats a plan duration as `42s`, `3:07`, or `1:02:09` so a running timer stays short. */
+export function formatPlanDuration(
   ms: number,
 ): string {
   const seconds = Math.max(0, Math.floor(ms / 1000))
