@@ -10,6 +10,12 @@ import { activityForPiEvent, type Activity } from './activity.ts'
 import { advanceEventSequence } from './event-sequence.ts'
 import type { LiveMessage } from './message-reconciliation.ts'
 import {
+  planFromMessages,
+  planStateFromDetails,
+  updatePlanToolName,
+  type PlanState,
+} from '../plan/plan-state.ts'
+import {
   applyToolCallUpdate,
   applyToolExecutionUpdate,
   interruptToolCallGeneration,
@@ -49,6 +55,7 @@ export function useConversationRuntime(
   const [liveMessages, setLiveMessages] = useState<LiveMessage[]>([])
   const [pendingSteering, setPendingSteering] = useState<string[]>([])
   const [activity, setActivity] = useState<Activity | null>(null)
+  const [plan, setPlan] = useState<PlanState | undefined>()
   const [toolExecutions, setToolExecutions] = useState<ToolExecution[]>([])
   const [observedToolDurations, setObservedToolDurations] = useState<ReadonlyMap<string, number>>(
     new Map(),
@@ -146,6 +153,7 @@ export function useConversationRuntime(
           snapshotSessionIdRef.current = sessionId
           setSnapshot(nextSnapshot)
           setSnapshotSessionId(sessionId)
+          setPlan(planFromMessages(nextSnapshot.messages))
           const latestLiveSequence = nextSnapshot.liveEvents.at(-1)?.sequence ?? 0
           if (latestLiveSequence > appliedPiEventSequenceRef.current) {
             clearLiveMessages()
@@ -241,6 +249,10 @@ export function useConversationRuntime(
         setToolExecutions((current) =>
           current.map((execution) => execution.id === id ? { ...execution, result } : execution)
         )
+        if (event.toolName === updatePlanToolName && !result.isError) {
+          const committed = planStateFromDetails(details)
+          if (committed) setPlan(committed)
+        }
         void refreshSnapshot(sessionId)
       }
       setActivity((current) => {
@@ -304,6 +316,7 @@ export function useConversationRuntime(
     setPendingSteering([])
     queueUpdateVersionRef.current += 1
     setActivity(null)
+    setPlan(undefined)
     setToolExecutions([])
     setObservedToolDurations(new Map())
     setObservedRequestDurations(new Map())
@@ -334,6 +347,8 @@ export function useConversationRuntime(
     }]
     liveMessagesRef.current = next
     setLiveMessages(next)
+    // A new turn ends the previous plan, matching the plan tool's commit-per-task contract.
+    setPlan(undefined)
     return id
   }, [flushLiveUpdates])
 
@@ -358,6 +373,7 @@ export function useConversationRuntime(
     observedRequestDurations,
     observedToolDurations,
     pendingSteering,
+    plan,
     refreshSnapshot,
     removeLiveMessage,
     removePendingSteering,

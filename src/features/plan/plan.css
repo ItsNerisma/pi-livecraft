@@ -1,0 +1,147 @@
+.plan-panel {
+  margin: 0 auto 8px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+.plan-panel.is-complete {
+  border-color: color-mix(in srgb, var(--success) 26%, var(--line));
+}
+.plan-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  border: 0;
+  padding: 0 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  transition: background-color 180ms ease-out;
+}
+.plan-heading:hover {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+.plan-heading:active {
+  transform: scale(0.995);
+}
+.plan-heading:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.plan-caret {
+  flex: 0 0 auto;
+  color: var(--subtle);
+  font-size: 10px;
+  transition: transform 180ms ease-out;
+}
+.plan-panel.is-collapsed .plan-caret {
+  transform: rotate(-90deg);
+}
+.plan-title {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font: 600 11px/1.4 ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.plan-progress {
+  flex: 0 0 auto;
+  color: var(--subtle);
+  font: 11px/1.4 ui-monospace, monospace;
+}
+.plan-current {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plan-panel.is-complete .plan-current {
+  color: var(--success);
+}
+.plan-note {
+  flex: 0 0 auto;
+  border-radius: 4px;
+  padding: 1px 5px;
+  background: color-mix(in srgb, var(--warning) 14%, var(--surface));
+  color: var(--warning-strong);
+  font: 10px/1.5 ui-monospace, monospace;
+}
+.plan-steps {
+  display: grid;
+  gap: 4px;
+  max-height: 168px;
+  margin: 0;
+  overflow-y: auto;
+  border-top: 1px solid var(--panel-line);
+  padding: 8px 10px 10px;
+  list-style: none;
+}
+.plan-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.plan-step-marker {
+  display: inline-flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  width: 12px;
+  color: var(--subtle);
+  font: 11px/1.6 ui-monospace, monospace;
+}
+.plan-step-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.plan-step[data-status="in_progress"] {
+  color: var(--ink);
+}
+.plan-step[data-status="in_progress"] .plan-step-marker {
+  color: var(--accent);
+  animation: plan-step-pulse 1.8s ease-in-out infinite;
+}
+.plan-step[data-status="completed"] .plan-step-marker {
+  color: var(--success);
+}
+.plan-step[data-status="skipped"] .plan-step-text {
+  text-decoration: line-through;
+}
+.plan-step-status,
+.plan-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@keyframes plan-step-pulse {
+  0%, 100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan-heading,
+  .plan-caret,
+  .plan-step[data-status="in_progress"] .plan-step-marker {
+    animation: none;
+    transition: none;
+  }
+}

@@ -30,6 +30,7 @@ import type {
 } from '../shared/types.ts'
 import { isObject } from '../shared/is-object.ts'
 import { Composer } from './features/composer/Composer.tsx'
+import { PlanPanel } from './features/plan/PlanPanel.tsx'
 import { setTabAttention, tabUnwatched } from './features/notifications/tab-attention.ts'
 import { ToastStack, type Toast } from './features/notifications/ToastStack.tsx'
 import { sessionActivity, type PiConnection } from './features/conversation/activity.ts'
@@ -395,6 +396,7 @@ function App() {
     observedRequestDurations,
     observedToolDurations,
     pendingSteering,
+    plan,
     refreshSnapshot,
     removeLiveMessage,
     removePendingSteering,
@@ -1246,6 +1248,12 @@ function App() {
                     </div>
                   </div>
                   <div className='composer-area'>
+                    {plan && (
+                      <PlanPanel
+                        plan={plan}
+                        running={selectedSession.status === 'running'}
+                      />
+                    )}
                     {questionnaire && questionnaireInComposer && (
                       <AskUserQuestionDialog
                         canMinimize

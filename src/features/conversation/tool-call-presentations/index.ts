@@ -1,5 +1,6 @@
 import { bashPresentation } from './bash.ts'
 import { filePresentation } from './file.ts'
+import { planPresentation } from './plan.ts'
 import { readPresentation } from './read.ts'
 import { searchPresentation } from './search.ts'
 import type { ToolCallPresenter } from './shared.ts'
@@ -10,5 +11,6 @@ export const toolCallPresentations: Record<string, ToolCallPresenter> = {
   find: searchPresentation,
   grep: searchPresentation,
   read: readPresentation,
+  update_plan: planPresentation,
   write: filePresentation,
 }

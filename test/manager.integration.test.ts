@@ -705,6 +705,7 @@ let createdSessionCount = 0
 const expectedExtensions = ${
     JSON.stringify([
       join(process.cwd(), 'pi-extensions/ask-user-question.ts'),
+      join(process.cwd(), 'pi-extensions/plan.ts'),
       join(process.cwd(), 'pi-extensions/quotas.ts'),
     ])
   }
