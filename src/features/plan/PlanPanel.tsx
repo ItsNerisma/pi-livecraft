@@ -190,7 +190,9 @@ export function PlanPanel(
               >
                 <span aria-hidden='true' className='plan-step-marker'>{markers[step.status]}</span>
                 <span className='plan-step-text'>{step.text}</span>
-                <span className='plan-step-duration'>{formatPlanDuration(duration)}</span>
+                {(step.status !== 'pending' || duration > 0) && (
+                  <span className='plan-step-duration'>{formatPlanDuration(duration)}</span>
+                )}
                 <span className='plan-step-status'>{statusLabels[step.status]}</span>
               </li>
             )
