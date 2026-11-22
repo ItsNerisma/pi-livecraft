@@ -146,12 +146,13 @@ export function PlanPanel(
         <button aria-expanded={!collapsed} className='plan-heading' onClick={toggle} type='button'>
           <span aria-hidden='true' className='plan-caret'>▾</span>
           <span className='plan-title'>Plan</span>
+          <span aria-hidden='true' className='plan-separator' />
+          <span className='plan-current'>{headline}</span>
           <span className='plan-progress'>{plan.done}/{plan.total}</span>
+          {paused && <span className='plan-note'>paused</span>}
           <span aria-label={`${formatPlanDuration(total)} of active time`} className='plan-total'>
             {formatPlanDuration(total)}
           </span>
-          <span className='plan-current'>{headline}</span>
-          {paused && <span className='plan-note'>paused</span>}
         </button>
       </Tooltip>
       {!collapsed && (

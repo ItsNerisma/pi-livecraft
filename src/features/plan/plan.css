@@ -1,6 +1,5 @@
 .plan-panel {
   /* Match the conversation's message column and its trailing gap, not the wider composer. */
-  --plan-tone: var(--accent);
   margin: 0 max(28px, calc((100% - 900px) / 2)) 16px;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -9,8 +8,7 @@
   color: var(--ink);
 }
 .plan-panel.is-complete {
-  --plan-tone: var(--success);
-  border-color: color-mix(in srgb, var(--success) 26%, var(--line));
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
 }
 .plan-heading {
   display: flex;
@@ -21,7 +19,7 @@
   min-height: 34px;
   border: 0;
   padding: 0 12px;
-  background: color-mix(in srgb, var(--plan-tone) 5%, var(--surface-raised));
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface-raised));
   color: inherit;
   font: inherit;
   text-align: left;
@@ -31,7 +29,7 @@
   border-bottom: 1px solid var(--line);
 }
 .plan-heading:hover {
-  background: color-mix(in srgb, var(--plan-tone) 9%, var(--surface-raised));
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface-raised));
 }
 .plan-heading:active {
   transform: scale(0.995);
@@ -51,10 +49,31 @@
 }
 .plan-title {
   flex: 0 0 auto;
-  color: var(--plan-tone);
+  color: var(--accent);
   font: 700 11px/1.4 ui-sans-serif, system-ui, sans-serif;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+.plan-separator {
+  flex: 0 0 auto;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--subtle);
+}
+.plan-current {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plan-panel.is-complete .plan-current {
+  color: var(--accent);
 }
 .plan-progress {
   flex: 0 0 auto;
@@ -63,22 +82,10 @@
 }
 .plan-total {
   flex: 0 0 auto;
+  margin-left: auto;
   color: color-mix(in srgb, var(--ink) 76%, var(--canvas));
   font: 600 11px/1.4 ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
-}
-.plan-current {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.45;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.plan-panel.is-complete .plan-current {
-  color: var(--success);
 }
 .plan-note {
   flex: 0 0 auto;
