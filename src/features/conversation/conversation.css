@@ -4,7 +4,7 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: clip;
-  padding: 42px max(28px, calc((100% - 900px) / 2)) 30px;
+  padding: 42px max(28px, calc((100% - 900px) / 2)) 16px;
   scrollbar-gutter: stable;
 }
 .conversation-content {
@@ -13,8 +13,15 @@
 .conversation-content .content {
   cursor: text;
 }
-.scroll-to-bottom {
+/* Sticky zero-height anchor: the floating button stays inside the scrollport
+   without reserving trailing space below the last message. */
+.scroll-to-bottom-anchor {
   position: sticky;
+  bottom: 0;
+  height: 0;
+}
+.scroll-to-bottom {
+  position: absolute;
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);

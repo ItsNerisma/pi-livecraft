@@ -494,23 +494,25 @@ export function Conversation(
           </div>
         )}
       </div>
-      <button
-        aria-label='Resume automatic scrolling'
-        className={`scroll-to-bottom${showScrollToBottom ? ' visible' : ''}`}
-        onClick={resumeAutoScroll}
-        type='button'
-      >
-        <svg aria-hidden='true' viewBox='0 0 16 16' width='16' height='16'>
-          <path
-            d='m4 6 4 4 4-4'
-            fill='none'
-            stroke='currentColor'
-            strokeLinecap='round'
-            strokeLinejoin='round'
-            strokeWidth='1.8'
-          />
-        </svg>
-      </button>
+      <div className='scroll-to-bottom-anchor'>
+        <button
+          aria-label='Resume automatic scrolling'
+          className={`scroll-to-bottom${showScrollToBottom ? ' visible' : ''}`}
+          onClick={resumeAutoScroll}
+          type='button'
+        >
+          <svg aria-hidden='true' viewBox='0 0 16 16' width='16' height='16'>
+            <path
+              d='m4 6 4 4 4-4'
+              fill='none'
+              stroke='currentColor'
+              strokeLinecap='round'
+              strokeLinejoin='round'
+              strokeWidth='1.8'
+            />
+          </svg>
+        </button>
+      </div>
     </section>
   )
 }
