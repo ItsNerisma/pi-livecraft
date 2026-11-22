@@ -268,19 +268,6 @@ function App() {
   /** Removes a toast after explicit dismissal or automatic timeout. */
   const dismissToast = useCallback((id: string) => startDismissal(id), [startDismissal])
 
-  // Browser tab attention: clear the completion marker as soon as the tab is visible again.
-  useEffect(() => {
-    const clearAttention = () => {
-      if (!document.hidden) setTabAttention(false)
-    }
-    document.addEventListener('visibilitychange', clearAttention)
-    window.addEventListener('focus', clearAttention)
-    return () => {
-      document.removeEventListener('visibilitychange', clearAttention)
-      window.removeEventListener('focus', clearAttention)
-    }
-  }, [])
-
   /** Restores visible dialogs and resolves stale agent selectors that block manager restart. */
   const handleSessionsRefreshed = useCallback((nextSessions: SessionSummary[]): void => {
     // Restore user-facing dialogs (excludes agent selectors which are handled silently)
@@ -363,6 +350,30 @@ function App() {
     onWorkspaceSelected: handleWorkspaceSelected,
   })
   selectedIdRef.current = selectedId
+
+  // Browser tab attention
+  /** Whether the session on screen settled while nobody was watching the tab. */
+  const [hiddenSessionCompleted, setHiddenSessionCompleted] = useState(false)
+  /**
+   * Badges the favicon while a completed session stays unopened, mirroring the sidebar markers.
+   * Completions of sessions that no longer exist are ignored so the badge cannot get stuck.
+   */
+  const unseenCompletion = hiddenSessionCompleted
+    || [...completedSessionIds].some((id) =>
+      sessions.some((session) => (session.sessionPath ?? session.id) === id)
+    )
+  useEffect(() => setTabAttention(unseenCompletion), [unseenCompletion])
+  useEffect(() => {
+    const clearHiddenCompletion = () => {
+      if (!document.hidden) setHiddenSessionCompleted(false)
+    }
+    document.addEventListener('visibilitychange', clearHiddenCompletion)
+    window.addEventListener('focus', clearHiddenCompletion)
+    return () => {
+      document.removeEventListener('visibilitychange', clearHiddenCompletion)
+      window.removeEventListener('focus', clearHiddenCompletion)
+    }
+  }, [])
 
   const startAndSelectSession = useCallback(
     (
@@ -621,7 +632,8 @@ function App() {
       if (event.type === 'agent_settled') {
         updateSession(sessionId, { status: 'idle' })
         markSessionCompleted(sessionId)
-        if (tabUnwatched()) setTabAttention(true)
+        if (tabUnwatched() && sessionId === selectedIdRef.current)
+          setHiddenSessionCompleted(true)
       }
       if (event.type === 'compaction_start')
         setCompactingSessionIds((current) => new Set(current).add(sessionId))

@@ -129,7 +129,7 @@ Open [http://127.0.0.1:5173](http://127.0.0.1:5173) and you should see Livecraft
 
 - **Flexible layout:** don't like the side panels? **** them; you can do whatever you want
 
-- **Notifications:** routine notices disappear on their own and errors remain until dismissed. An agent that finishes while you are looking elsewhere badges the browser tab favicon with a red dot
+- **Notifications:** routine notices disappear on their own and errors remain until dismissed. An unopened agent completion badges the browser-tab favicon with a red dot until you open that session
 
 ## Make it yours
 

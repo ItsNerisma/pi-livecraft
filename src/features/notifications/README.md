@@ -16,9 +16,12 @@ styles in this directory.
 ## Tab attention
 
 `tab-attention.ts` owns the browser-tab completion badge: a red dot composited onto the current
-favicon, the way Discord marks unread tabs. `App.tsx` raises the badge from the `agent_settled` Pi
-event only while the tab is unwatched (`tabUnwatched()`), and clears it as soon as the tab becomes
-visible again (the next `visibilitychange` or window `focus`).
+favicon, the way Discord marks unread tabs. `App.tsx` keeps the badge up while an unseen completion
+exists (`unseenCompletion`), from two sources: an unopened completion tracked by
+`completedSessionIds` (the same set behind the sidebar markers, so the badge survives until that
+session is opened and even a page refresh), and `hiddenSessionCompleted`, which covers the session
+already on screen settling while nobody watched the tab and clears on the next `visibilitychange` or
+window `focus`.
 
 Surrounding the badge on a canvas instead of shipping a second icon file keeps one source of truth
 for the favicon: the module rasterises whatever `link[rel~="icon"]` currently points at, draws the
