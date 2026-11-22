@@ -30,6 +30,7 @@ import type {
 } from '../shared/types.ts'
 import { isObject } from '../shared/is-object.ts'
 import { Composer } from './features/composer/Composer.tsx'
+import { setTabAttention, tabUnwatched } from './features/notifications/tab-attention.ts'
 import { ToastStack, type Toast } from './features/notifications/ToastStack.tsx'
 import { sessionActivity, type PiConnection } from './features/conversation/activity.ts'
 import { Conversation } from './features/conversation/Conversation.tsx'
@@ -265,6 +266,19 @@ function App() {
 
   /** Removes a toast after explicit dismissal or automatic timeout. */
   const dismissToast = useCallback((id: string) => startDismissal(id), [startDismissal])
+
+  // Browser tab attention: clear the completion marker as soon as the tab is visible again.
+  useEffect(() => {
+    const clearAttention = () => {
+      if (!document.hidden) setTabAttention(false)
+    }
+    document.addEventListener('visibilitychange', clearAttention)
+    window.addEventListener('focus', clearAttention)
+    return () => {
+      document.removeEventListener('visibilitychange', clearAttention)
+      window.removeEventListener('focus', clearAttention)
+    }
+  }, [])
 
   /** Restores visible dialogs and resolves stale agent selectors that block manager restart. */
   const handleSessionsRefreshed = useCallback((nextSessions: SessionSummary[]): void => {
@@ -605,6 +619,7 @@ function App() {
       if (event.type === 'agent_settled') {
         updateSession(sessionId, { status: 'idle' })
         markSessionCompleted(sessionId)
+        if (tabUnwatched()) setTabAttention(true)
       }
       if (event.type === 'compaction_start')
         setCompactingSessionIds((current) => new Set(current).add(sessionId))

@@ -13,7 +13,7 @@ Start with the area that owns the behavior. Read `App.tsx` only when state coord
 
 - `commands/` owns the command registry, palette, and keyboard normalization. See [commands](/src/features/commands/README.md).
 - `settings/` edits local preferences exposed to the user. See [settings and preferences](/src/features/settings/README.md).
-- `notifications/` displays transient notices and persistent errors. See [notifications](/src/features/notifications/README.md).
+- `notifications/` displays transient notices, persistent errors, and the browser-tab completion marker. See [notifications](/src/features/notifications/README.md).
 - `manager/` reports manager runtime changes and offers the [guarded manual restart](/src/features/manager/README.md).
 - `right-sidebar/` composes workspace widgets and rail actions. See [right sidebar](/src/features/right-sidebar/README.md).
 
