@@ -4,7 +4,7 @@ The plan panel shows the macro plan Pi committed for the current task, directly 
 
 ## Contract with Pi
 
-`pi-extensions/plan.ts` registers the `update_plan` tool. Every call replaces the complete plan, so an update needs no identifier, no diff, and no merge rule. `shared/plan.ts` validates both the model's arguments and the payload the interface reads.
+`pi-extensions/plan.ts` registers the `update_plan` tool and adds one short `planning` section to the system prompt, because a tool that is only advertised in the tool list is rarely adopted. Every call replaces the complete plan, so an update needs no identifier, no diff, and no merge rule. `shared/plan.ts` validates both the model's arguments and the payload the interface reads.
 
 - 2 to 8 steps, at most one `in_progress`, at most 120 characters per step;
 - statuses are `pending`, `in_progress`, `completed`, and `skipped`;

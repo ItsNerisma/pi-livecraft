@@ -12,16 +12,27 @@ import {
 const rejectedPlanMessage =
   `The plan was rejected. Send the complete plan with ${planMinimumSteps}-${planMaximumSteps} steps, at most one in_progress, and at most ${planStepTextLimit} characters per step.`
 
+/** One-line policy so adoption never depends on the model discovering the tool. */
+const planPolicy =
+  'The interface shows your plan live while you work. Before the first action of a task that needs more than two tool calls, commit that plan with update_plan, then keep its steps current.'
+
 /** Registers the tool that commits and updates the macro plan shown above the composer. */
 export default function registerPlan(pi: ExtensionAPI): void {
+  pi.on('before_agent_start', (event) => {
+    const options = event.systemPromptOptions
+    if (!options) return
+    options.sections = { ...options.sections, planning: planPolicy }
+  })
+
   pi.registerTool({
     name: 'update_plan',
     label: 'Update Plan',
-    description: 'Commit or replace the macro plan for the current task.',
-    promptSnippet: 'Commit and update a macro plan for a multi-step task',
+    description: 'Commit the macro plan for the current task so the user can follow your steps.',
+    promptSnippet: 'Commit and update the macro plan for the current task',
     promptGuidelines: [
-      'Use update_plan once before starting a multi-step task, then only when a step starts or finishes; always send the complete plan.',
-      `Keep update_plan to ${planMinimumSteps}-${planMaximumSteps} short steps and skip it for single-step requests.`,
+      'Call update_plan before the first tool call of every task that needs more than two steps, then keep the plan current.',
+      'Update update_plan when a step starts or finishes, never between steps, and always send the complete plan.',
+      `Skip update_plan for a single-step request and for a follow-up that finishes the plan already committed. Send ${planMinimumSteps}-${planMaximumSteps} steps.`,
     ],
     parameters: Type.Object({
       steps: Type.Array(Type.Object({
