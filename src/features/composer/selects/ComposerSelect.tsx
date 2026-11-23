@@ -6,6 +6,7 @@ export const ComposerSelect = memo(function ComposerSelect(
   {
     ariaLabel,
     disabled,
+    onToggleFavorite,
     onOpenChange,
     onValueChange,
     open,
@@ -20,8 +21,15 @@ export const ComposerSelect = memo(function ComposerSelect(
   }: {
     ariaLabel: string
     disabled?: boolean
+    onToggleFavorite?: (value: string) => void
     onValueChange: (value: string) => void
-    options: { description?: string; kind?: 'action'; label: string; value: string }[]
+    options: {
+      description?: string
+      favorite?: boolean
+      kind?: 'action'
+      label: string
+      value: string
+    }[]
     placeholder?: string
     tone: 'agent' | 'behavior' | 'command' | 'improve' | 'model' | 'prompt' | 'thinking'
     value: string
@@ -69,6 +77,21 @@ export const ComposerSelect = memo(function ComposerSelect(
                     {option.description && <small>{option.description}</small>}
                   </span>
                 </Select.ItemText>
+                {onToggleFavorite && (
+                  <button
+                    aria-label={`Toggle favorite ${option.label}`}
+                    aria-pressed={option.favorite}
+                    className={`composer-select-favorite${option.favorite ? ' active' : ''}`}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onToggleFavorite(option.value)
+                    }}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    type='button'
+                  >
+                    ★
+                  </button>
+                )}
                 <Select.ItemIndicator aria-hidden='true'>✓</Select.ItemIndicator>
               </Select.Item>
             ))}

@@ -1,4 +1,4 @@
-import { memo, type RefObject } from 'react'
+import { memo, useState, type RefObject } from 'react'
 import type { JsonObject } from '../../../../shared/types.ts'
 import { ComposerSelect } from './ComposerSelect.tsx'
 
@@ -14,6 +14,29 @@ export const ModelSelect = memo(function ModelSelect(
     triggerRef: RefObject<HTMLButtonElement | null>
   },
 ) {
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try {
+      return JSON.parse(
+        window.localStorage.getItem('pi-livecraft.favorite-models') ?? '[]',
+      ) as string[]
+    } catch {
+      return []
+    }
+  })
+  const toggleFavorite = (value: string) => {
+    const next = favorites.includes(value)
+      ? favorites.filter((favorite) => favorite !== value)
+      : [...favorites, value]
+    setFavorites(next)
+    window.localStorage.setItem('pi-livecraft.favorite-models', JSON.stringify(next))
+  }
+  const orderedModels = [...models].sort((a, b) => {
+    const aId = `${a.provider}/${a.id}`
+    const bId = `${b.provider}/${b.id}`
+    return Number(bId === currentModel) - Number(aId === currentModel)
+      || Number(favorites.includes(bId)) - Number(favorites.includes(aId))
+  })
+
   return (
     <ComposerSelect
       ariaLabel='Model'
@@ -29,10 +52,12 @@ export const ModelSelect = memo(function ModelSelect(
           })
             .catch(onError)
       }}
-      options={models.map((item) => ({
+      onToggleFavorite={toggleFavorite}
+      options={orderedModels.map((item) => ({
         // Several providers resell the same model IDs, so the name alone cannot
         // identify the endpoint that will bill the request.
         description: String(item.provider),
+        favorite: favorites.includes(`${item.provider}/${item.id}`),
         label: String(item.name ?? item.id),
         value: `${item.provider}/${item.id}`,
       }))}

@@ -587,6 +587,27 @@
   line-height: 1.35;
   cursor: pointer;
 }
+.composer-select-favorite {
+  flex: 0 0 auto;
+  border: 0;
+  padding: 2px 4px;
+  background: transparent;
+  color: var(--muted);
+  opacity: 0;
+  cursor: pointer;
+}
+.composer-select-option:hover .composer-select-favorite,
+.composer-select-favorite:focus-visible,
+.composer-select-favorite.active {
+  opacity: 1;
+}
+.composer-select-favorite.active {
+  color: var(--accent);
+}
+.composer-select-favorite:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 .composer-select-option-copy {
   display: grid;
   min-width: 0;
