@@ -181,13 +181,8 @@ export function NewSessionDialog(
         role='dialog'
       >
         <header className='new-session-heading'>
-          <div className='new-session-heading-icon'>
-            <FolderIcon />
-          </div>
-          <div className='new-session-heading-copy'>
-            <h2 id='new-session-title'>New session</h2>
-            <p>A new Pi session starts in the folder you pick.</p>
-          </div>
+          <h2 id='new-session-title'>New session</h2>
+          <p>A new Pi session starts in the folder you pick.</p>
         </header>
         <div className='new-session-folder'>
           <button
@@ -197,7 +192,7 @@ export function NewSessionDialog(
             type='button'
           >
             <FolderIcon />
-            {browsing ? 'Opening…' : 'Choose folder…'}
+            {browsing ? 'Opening…' : 'Choose workspace folder…'}
           </button>
           <p className='new-session-or'>Or type a path</p>
           <input

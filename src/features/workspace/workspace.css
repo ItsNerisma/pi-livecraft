@@ -592,31 +592,10 @@
   padding: 20px;
 }
 .new-session-heading {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  min-width: 0;
-  margin-bottom: 16px;
-}
-.new-session-heading-icon {
-  display: grid;
-  flex: 0 0 36px;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
-  border-radius: 10px;
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-.new-session-heading-icon svg {
-  width: 18px;
-  height: 18px;
-}
-.new-session-heading-copy {
   display: grid;
   min-width: 0;
   gap: 3px;
+  margin-bottom: 16px;
 }
 .new-session-heading h2 {
   margin: 0;
