@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, mkdir, realpath, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, realpath, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 import test from 'node:test'
@@ -84,6 +84,36 @@ test('returns sessions from every workspace and omits stale cwd records', async 
     new Set(recent.map(({ cwd }) => cwd)),
     new Set([workspace, otherWorkspace]),
   )
+})
+
+test('applies the recent-session limit independently to each workspace', async () => {
+  const { directory, workspace } = await fixture()
+  const otherWorkspace = await mkdtemp(join(tmpdir(), 'pi-workspace-'))
+  const baseMtime = Date.now() - 1_000_000
+  for (
+    const [cwd, prefix, total, mtimeOffset] of [
+      [workspace, 'first', 31, 0],
+      [otherWorkspace, 'second', 100, 31],
+    ] as const
+  ) {
+    for (let index = 0; index < total; index += 1) {
+      const id = prefix + '-' + index
+      const path = join(directory, id + '.jsonl')
+      await writeSession(path, cwd, id, 'Session ' + id)
+      const mtime = new Date(baseMtime + (mtimeOffset + index) * 1_000)
+      await utimes(path, mtime, mtime)
+    }
+  }
+
+  const recent = await listRecentPiSessions(directory)
+  const workspaceCounts = recent.reduce((counts, session) => {
+    counts.set(session.cwd, (counts.get(session.cwd) ?? 0) + 1)
+    return counts
+  }, new Map<string, number>())
+  assert.equal(recent.length, 60)
+  assert.equal(workspaceCounts.size, 2)
+  assert.equal(workspaceCounts.get(workspace), 30)
+  assert.equal(workspaceCounts.get(otherWorkspace), 30)
 })
 
 test('uses the first non-command user prompt and hides sessions without messages', async () => {

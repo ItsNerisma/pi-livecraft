@@ -74,8 +74,8 @@ export function useWorkspaceSessions(
   selectedIdRef.current = selectedId
 
   const groups = useMemo(
-    () => workspaceGroups(recentSessions, sentSessions, workspacePaths),
-    [recentSessions, sentSessions, workspacePaths],
+    () => workspaceGroups(recentSessions, sentSessions, sessions, workspacePaths),
+    [recentSessions, sentSessions, sessions, workspacePaths],
   )
   const groupsRef = useRef(groups)
   groupsRef.current = groups
@@ -190,6 +190,16 @@ export function useWorkspaceSessions(
     )
   }, [])
 
+  const selectSession = useCallback((sessionId: string): void => {
+    const session = sessionsRef.current.find((candidate) => candidate.id === sessionId)
+    if (session) addWorkspacePath(session.cwd)
+    setSelectedId(sessionId)
+  }, [addWorkspacePath])
+
+  useEffect(() => {
+    if (selectedSessionCwd) addWorkspacePath(selectedSessionCwd)
+  }, [addWorkspacePath, selectedSessionCwd])
+
   const toggleWorkspaceCollapsed = useCallback((path: string): void => {
     setCollapsedWorkspacePaths((current) => {
       const next = new Set(current)
@@ -236,7 +246,7 @@ export function useWorkspaceSessions(
       try {
         const session = await start()
         await refreshSessions()
-        setSelectedId(session.id)
+        selectSession(session.id)
         if (options.draftMessage) onDraftMessage(session.id, options.draftMessage)
         if (options.initialMessage) {
           await sendPiCommand(session.id, { type: 'prompt', message: options.initialMessage })
@@ -253,7 +263,14 @@ export function useWorkspaceSessions(
         setCreatingSession(false)
       }
     },
-    [nameSessionFromFirstPrompt, onDraftMessage, onError, onInitialMessageSent, refreshSessions],
+    [
+      nameSessionFromFirstPrompt,
+      onDraftMessage,
+      onError,
+      onInitialMessageSent,
+      refreshSessions,
+      selectSession,
+    ],
   )
 
   /** Creates a session inside a workspace, selects it, and keeps the folder in the sidebar. */
@@ -274,21 +291,30 @@ export function useWorkspaceSessions(
         session.sessionPath === row.sessionPath && session.status !== 'exited'
       )
       if (active) {
-        setSelectedId(active.id)
+        selectSession(active.id)
         return
       }
-      await startAndSelectSession(() => requestOpenSession(row.cwd, row.sessionPath))
+      const session = await startAndSelectSession(() =>
+        requestOpenSession(row.cwd, row.sessionPath)
+      )
+      if (session) addWorkspacePath(row.cwd)
     },
-    [startAndSelectSession],
+    [addWorkspacePath, selectSession, startAndSelectSession],
   )
 
   /** Opens the most recently active workspace other than the current one. */
   const activatePreviousWorkspace = useCallback((): void => {
-    const target = groups.find((group) => group.path !== workspacePath && group.sessions.length > 0)
+    if (!workspacePath) return
+    const previousPath = workspacePaths.find((path) =>
+      path !== workspacePath
+      && groups.some((group) => group.path === path && group.sessions.length > 0)
+    )
+    const target = groups.find((group) => group.path === previousPath)
+      ?? groups.find((group) => group.path !== workspacePath && group.sessions.length > 0)
     const row = target?.sessions[0]
     if (!row) return
     void openSessionRow(row).catch(onError)
-  }, [groups, onError, openSessionRow, workspacePath])
+  }, [groups, onError, openSessionRow, workspacePath, workspacePaths])
 
   const updateSession = useCallback(
     (
@@ -353,9 +379,12 @@ export function useWorkspaceSessions(
       )
       : null
     await requestCloseSession(sessionId)
-    if (selectedIdRef.current === sessionId) setSelectedId(nextId ?? '')
+    if (selectedIdRef.current === sessionId) {
+      if (nextId) selectSession(nextId)
+      else setSelectedId('')
+    }
     await refreshSessions()
-  }, [refreshSessions])
+  }, [refreshSessions, selectSession])
 
   /** Adds or replaces a pending UI request for a session. */
   const addPendingRequest = useCallback((sessionId: string, request: JsonObject): void => {
@@ -430,7 +459,7 @@ export function useWorkspaceSessions(
     selectedId,
     sessions,
     setNewSessionDialogOpen,
-    setSelectedId,
+    selectSession,
     toggleWorkspaceCollapsed,
     updateSession,
     workspacePath,

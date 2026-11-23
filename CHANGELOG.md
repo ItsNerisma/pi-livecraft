@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Session pinning, the `Other workspaces` section, the `Open directory picker` command and its `alt+d` shortcut. Stored pins and the old workspace keys are ignored.
+- Session pinning, the `Other workspaces` section, the `Open directory picker` command and its `alt+d` shortcut. Stored pinned-session choices are not migrated; sessions still in Pi history appear under their workspace as ordinary rows.
 
 
 

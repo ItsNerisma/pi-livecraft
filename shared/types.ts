@@ -92,6 +92,8 @@ export interface TodoSessionLink {
   id: string
   name: string
   sessionPath: string
+  /** Workspace directory, omitted only by links saved before multi-workspace navigation. */
+  cwd?: string
 }
 
 export interface TodoItem {

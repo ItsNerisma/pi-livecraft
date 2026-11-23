@@ -101,14 +101,15 @@ test('passes the Windows starting directory only through the environment', () =>
   assert.equal(invocation.env?.PI_LIVECRAFT_PICK_INITIAL, 'C:\\hostile & ü')
 })
 
-test('escapes the macOS default location inside the AppleScript literal', () => {
-  const [invocation] = folderPickerInvocations('darwin', '/Users/a "quoted" dir')
+test('passes the macOS starting directory as an argument, outside the AppleScript source', () => {
+  const hostilePath = '/Users/a "quoted" dir'
+  const [invocation] = folderPickerInvocations('darwin', hostilePath)
   assert.equal(invocation.command, 'osascript')
   assert.deepEqual(invocation.args.slice(0, 1), ['-e'])
-  assert.match(
-    invocation.args[1],
-    /default location \(POSIX file "\/Users\/a \\"quoted\\" dir" as alias\)/,
-  )
+  assert.ok(!invocation.args[1].includes(hostilePath))
+  assert.equal(invocation.args[2], hostilePath)
+  assert.match(invocation.args[1], /on run argv/)
+  assert.ok(invocation.args[1].includes('\n'))
 })
 
 test('resolves the selected path from the first available dialog', async () => {
@@ -133,6 +134,15 @@ test('treats exit code 1 as a cancellation and stops trying candidates', async (
   const { spawnProcess } = fakeSpawn(runs, () => ({ code: 1 }))
   assert.equal(await pickDirectory('linux', undefined, spawnProcess), null)
   assert.deepEqual(runs.map(({ command }) => command), ['zenity'])
+})
+
+test('reports a Linux dialog failure that exits with code 1 and writes stderr', async () => {
+  const runs: FakeRun[] = []
+  const { spawnProcess } = fakeSpawn(runs, () => ({
+    code: 1,
+    stderr: 'cannot open display',
+  }))
+  await assert.rejects(() => pickDirectory('linux', undefined, spawnProcess), /cannot open display/)
 })
 
 test('treats an osascript error -128 as a cancellation', async () => {

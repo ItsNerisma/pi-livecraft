@@ -28,7 +28,7 @@ function live(session: RecentSession, status: SessionSummary['status']): Session
 test('choisit la session active suivante dans la même section', () => {
   const rows = [row('closed', 30), row('next', 20), row('previous', 10)]
   const sessions = rows.map((session) => live(session, 'idle'))
-  const [group] = workspaceGroups(rows, [], [])
+  const [group] = workspaceGroups(rows, [], [], [])
 
   assert.equal(nextActiveSessionId('closed', group, sessions), 'next')
   assert.equal(nextActiveSessionId('next', group, sessions), 'previous')
@@ -42,7 +42,7 @@ test('ignore les sessions sorties et les sections inconnues', () => {
     live(rows[1], 'exited'),
     live(rows[2], 'idle'),
   ]
-  const [group] = workspaceGroups(rows, [], [])
+  const [group] = workspaceGroups(rows, [], [], [])
 
   assert.equal(nextActiveSessionId('closed', group, sessions), null)
   assert.equal(nextActiveSessionId('closed', undefined, sessions), null)
@@ -51,7 +51,7 @@ test('ignore les sessions sorties et les sections inconnues', () => {
 test('sélectionne la première session active quand la session fermée est inconnue', () => {
   const rows = [row('first', 30), row('second', 20)]
   const sessions = [live(rows[0], 'idle'), live(rows[1], 'running')]
-  const [group] = workspaceGroups(rows, [], [])
+  const [group] = workspaceGroups(rows, [], [], [])
 
   assert.equal(nextActiveSessionId('missing', group, sessions), 'first')
 })

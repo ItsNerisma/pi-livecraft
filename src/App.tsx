@@ -334,7 +334,7 @@ function App() {
     selectedId,
     sessions,
     setNewSessionDialogOpen,
-    setSelectedId,
+    selectSession,
     toggleWorkspaceCollapsed,
     updateSession,
     workspacePath,
@@ -888,7 +888,7 @@ function App() {
   const questionnaireInComposer = questionnaire?.sessionId === selectedId
     && snapshotSessionId === selectedId
   const openQuestionnaireSession = questionnaireSession && questionnaireSession.id !== selectedId
-    ? () => setSelectedId(questionnaireSession.id)
+    ? () => selectSession(questionnaireSession.id)
     : undefined
 
   const markComposerDraftApplied = useCallback((id: string) => {
@@ -1012,7 +1012,10 @@ function App() {
               .includes(definition.id) && !selectedSession
           || (definition.id === 'abort' && selectedSession?.status !== 'running')
           || (definition.id === 'workspace-previous'
-            && !groups.some((group) => group.path !== workspacePath && group.sessions.length > 0))
+            && (!workspacePath
+              || !groups.some((group) =>
+                group.path !== workspacePath && group.sessions.length > 0
+              )))
           || (definition.id === 'next-session' && selectedIndex >= rowCount - 1)
           || (definition.id === 'previous-session' && selectedIndex <= 0),
         onExecute: () => executeCommand(definition.id),
@@ -1366,28 +1369,31 @@ function App() {
           return await revertGitCommit(workspacePath, hash)
         }}
         onTodoNavigateSession={(link) => {
-          const active = sessions.find((s) => s.id === link.id)
+          const active = sessions.find((session) => session.status !== 'exited'
+            && (session.id === link.id || session.sessionPath === link.sessionPath)
+          )
           if (active) {
-            setSelectedId(link.id)
+            selectSession(active.id)
           } else {
-            void openSessionRow({
-              cwd: workspacePath,
-              id: link.id,
-              name: link.name,
-              sessionPath: link.sessionPath,
-              updatedAt: Date.now(),
-            })
+            const savedRow = groups.flatMap((group) => group.sessions).find((session) =>
+              session.sessionPath === link.sessionPath
+            )
+            void openSessionRow(
+              savedRow ?? {
+                cwd: link.cwd || workspacePath,
+                id: link.id,
+                name: link.name,
+                sessionPath: link.sessionPath,
+                updatedAt: Date.now(),
+              },
+            )
               .catch((cause) => showToast('error', messageOf(cause)))
           }
         }}
-        onTodoSendPrompt={async (message) => {
-          await createSessionInWorkspace(workspacePath, { initialMessage: message })
-          return null
-        }}
-        onTodoStartSession={async (message) => {
-          await createSessionInWorkspace(workspacePath, { draftMessage: message })
-          return null
-        }}
+        onTodoSendPrompt={(message) =>
+          createSessionInWorkspace(workspacePath, { initialMessage: message })}
+        onTodoStartSession={(message) =>
+          createSessionInWorkspace(workspacePath, { draftMessage: message })}
         onWidgetSelect={(widget) =>
           setActiveRightWidget((current) => {
             const next = current === widget ? null : widget

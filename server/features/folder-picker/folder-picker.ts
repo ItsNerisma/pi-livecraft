@@ -49,12 +49,26 @@ export function folderPickerInvocations(
     }]
   }
   if (platform === 'darwin') {
-    const defaultLocation = initialPath
-      ? ` default location (POSIX file "${escapeAppleScriptString(initialPath)}" as alias)`
-      : ''
+    const script = [
+      'on run argv',
+      'set initialLocation to missing value',
+      'if (count of argv) > 0 then',
+      'try',
+      'set initialLocation to POSIX file (item 1 of argv) as alias',
+      'end try',
+      'end if',
+      'if initialLocation is missing value then',
+      `set selectedFolder to choose folder with prompt "${pickerTitle}"`,
+      'else',
+      `set selectedFolder to choose folder with prompt "${pickerTitle}" default location initialLocation`,
+      'end if',
+      'return POSIX path of selectedFolder',
+      'end run',
+    ]
+      .join('\n')
     return [{
       command: 'osascript',
-      args: ['-e', `POSIX path of (choose folder with prompt "${pickerTitle}"${defaultLocation})`],
+      args: ['-e', script, ...(initialPath ? [initialPath] : [])],
     }]
   }
   return [
@@ -140,9 +154,15 @@ function runPicker(
         return
       }
       // osascript reports both a cancelled dialog (-128) and script errors with exit code 1.
-      if (code === 1 && (platform !== 'darwin' || errorOutput.includes('-128'))) {
-        resolve(null)
-        return
+      if (code === 1) {
+        if (platform === 'darwin' && errorOutput.includes('-128')) {
+          resolve(null)
+          return
+        }
+        if (platform !== 'darwin' && !errorOutput.trim()) {
+          resolve(null)
+          return
+        }
       }
       reject(
         new Error(
@@ -155,11 +175,6 @@ function runPicker(
 
 function isMissingExecutable(error: unknown): boolean {
   return (error as NodeJS.ErrnoException | null)?.code === 'ENOENT'
-}
-
-/** Escapes a path so it stays a single AppleScript string literal. */
-function escapeAppleScriptString(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }
 
 /** The path reaches PowerShell only through the environment, never through the script text. */

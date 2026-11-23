@@ -94,6 +94,11 @@ function isTodoItem(value: unknown): value is TodoItem {
       || typeof value.session.sessionPath !== 'string'
       || value.session.sessionPath.trim().length === 0
       || value.session.sessionPath.length > 1000
+      || (value.session.cwd !== undefined && (
+        typeof value.session.cwd !== 'string'
+        || value.session.cwd.trim().length === 0
+        || value.session.cwd.length > 4096
+      ))
     ) return false
   }
   return true

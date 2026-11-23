@@ -25,8 +25,14 @@ interface PiSessionHeader {
   cwd: string
 }
 
+interface PiSessionFile {
+  canonicalPath: string
+  cwd: string
+  header: PiSessionHeader
+}
+
 const MAX_SESSIONS_PER_WORKSPACE = 30
-const CANDIDATE_BUFFER = 100
+const SESSION_SCAN_BATCH_SIZE = 100
 const HEAD_CHUNK_BYTES = 64 * 1024
 const TAIL_CHUNK_BYTES = 64 * 1024
 const TAIL_SCAN_BUDGET = 2 * 1024 * 1024
@@ -40,28 +46,36 @@ export async function listRecentPiSessions(
 ): Promise<RecentSession[]> {
   const paths = await listSessionFiles(directory)
 
-  // stat is cheap, readFile is expensive: read only the most recent candidates
   const withMtime = await Promise.all(
     paths.map(async (path) => ({ path, mtime: (await stat(path)).mtimeMs })),
   )
-  const candidates = withMtime
-    .sort((a, b) => b.mtime - a.mtime)
-    .slice(0, CANDIDATE_BUFFER)
+  withMtime.sort((left, right) => right.mtime - left.mtime)
+  const indexed: Array<{ mtime: number; sessionFile: PiSessionFile }> = []
+  for (let index = 0; index < withMtime.length; index += SESSION_SCAN_BATCH_SIZE) {
+    const batch = withMtime.slice(index, index + SESSION_SCAN_BATCH_SIZE)
+    const entries = await Promise.all(batch.map(async ({ path, mtime }) => ({
+      mtime,
+      sessionFile: await readPiSessionFile(path),
+    })))
+    indexed.push(
+      ...entries.filter((entry): entry is { mtime: number; sessionFile: PiSessionFile } =>
+        entry.sessionFile !== null
+      ),
+    )
+  }
 
-  const sessions = await Promise.all(
-    candidates.map(({ path, mtime }) => readPiSession(path, mtime)),
-  )
-
+  // Read the full summaries only until each workspace has enough visible sessions.
   const perWorkspace = new Map<string, number>()
   const recent: RecentSession[] = []
-  for (const session of sessions.sort(byUpdatedAt)) {
-    if (!session) continue
-    const count = perWorkspace.get(session.cwd) ?? 0
+  for (const { mtime, sessionFile } of indexed) {
+    const count = perWorkspace.get(sessionFile.cwd) ?? 0
     if (count >= MAX_SESSIONS_PER_WORKSPACE) continue
-    perWorkspace.set(session.cwd, count + 1)
+    const session = await readPiSession(sessionFile.canonicalPath, mtime, sessionFile)
+    if (!session) continue
+    perWorkspace.set(sessionFile.cwd, count + 1)
     recent.push(session)
   }
-  return recent
+  return recent.sort(byUpdatedAt)
 }
 
 function byUpdatedAt(left: RecentSession | null, right: RecentSession | null): number {
@@ -101,28 +115,21 @@ async function listSessionFiles(directory: string): Promise<string[]> {
 }
 
 /** Extracts a session's identity, name, and latest activity without loading its full history. */
-async function readPiSession(path: string, updatedAt: number): Promise<RecentSession | null> {
-  let canonicalPath: string
-  try {
-    canonicalPath = await realpath(path)
-  } catch {
-    return null
-  }
+async function readPiSession(
+  path: string,
+  updatedAt: number,
+  sessionFile?: PiSessionFile,
+): Promise<RecentSession | null> {
+  const file = sessionFile ?? await readPiSessionFile(path)
+  if (!file) return null
   let lines: string[]
   try {
-    lines = await readSessionLines(canonicalPath)
+    lines = await readSessionLines(file.canonicalPath)
   } catch {
     return null
   }
 
-  const header = parseHeader(lines[0])
-  if (!header) return null
-  let cwd: string
-  try {
-    cwd = await realpath(header.cwd)
-  } catch {
-    return null
-  }
+  const { header, cwd, canonicalPath } = file
   let hasMessage = false
   let name: string | undefined
   let prompt: string | undefined
@@ -154,6 +161,37 @@ async function readPiSession(path: string, updatedAt: number): Promise<RecentSes
     name: name || prompt || 'New session',
     sessionPath: canonicalPath,
     updatedAt: lastMessageAt ?? (Number.isNaN(createdAt) ? updatedAt : createdAt),
+  }
+}
+
+/** Reads and resolves the small JSONL header needed to group session files by workspace. */
+async function readPiSessionFile(path: string): Promise<PiSessionFile | null> {
+  let canonicalPath: string
+  try {
+    canonicalPath = await realpath(path)
+  } catch {
+    return null
+  }
+  let handle: FileHandle | undefined
+  try {
+    handle = await open(canonicalPath, 'r')
+    const head = Buffer.alloc(HEAD_CHUNK_BYTES)
+    const { bytesRead } = await handle.read(head, 0, HEAD_CHUNK_BYTES, 0)
+    const lineEnd = head.subarray(0, bytesRead).indexOf(0x0a)
+    if (lineEnd < 0) return null
+    const header = parseHeader(head.toString('utf8', 0, lineEnd))
+    if (!header) return null
+    let cwd: string
+    try {
+      cwd = await realpath(header.cwd)
+    } catch {
+      return null
+    }
+    return { canonicalPath, cwd, header }
+  } catch {
+    return null
+  } finally {
+    await handle?.close().catch(() => {})
   }
 }
 

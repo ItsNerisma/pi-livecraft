@@ -80,6 +80,41 @@ test('accepts valid session link on a todo item', () => {
   ])
 })
 
+test('accepts and preserves the workspace on a session link', () => {
+  const linked = parseTodoItems([
+    {
+      id: 'linked',
+      text: 'Tâche liée',
+      completed: false,
+      session: {
+        id: 's1',
+        name: 'Ma session',
+        sessionPath: '/tmp/session.jsonl',
+        cwd: '/workspace/project',
+      },
+    },
+  ])
+  assert.equal(linked[0].session?.cwd, '/workspace/project')
+})
+
+test('rejects an invalid workspace on a session link', () => {
+  assert.throws(
+    () =>
+      parseTodoItems([{
+        id: 'bad',
+        text: 'X',
+        completed: false,
+        session: {
+          id: 's1',
+          name: 'Session',
+          sessionPath: '/tmp/session.jsonl',
+          cwd: '',
+        },
+      }]),
+    /Invalid workspace todo list/,
+  )
+})
+
 test('rejects incomplete session link', () => {
   assert.throws(
     () =>

@@ -1,4 +1,4 @@
-import type { RecentSession } from '../../../shared/types.ts'
+import type { RecentSession, SessionSummary } from '../../../shared/types.ts'
 
 /** One collapsible workspace section of the session sidebar. */
 export interface WorkspaceGroup {
@@ -22,9 +22,10 @@ export interface WorkspaceGroup {
 export function workspaceGroups(
   recentSessions: readonly RecentSession[],
   sentSessions: readonly RecentSession[],
+  liveSessions: readonly SessionSummary[],
   workspacePaths: readonly string[],
 ): WorkspaceGroup[] {
-  const rows = sidebarSessionRows(recentSessions, sentSessions)
+  const rows = sidebarSessionRows(recentSessions, sentSessions, liveSessions)
   const paths = uniquePaths([...workspacePaths, ...rows.map((row) => row.cwd)])
   return paths
     .map((path) => {
@@ -48,13 +49,36 @@ export function workspaceGroups(
 export function sidebarSessionRows(
   recentSessions: readonly RecentSession[],
   sentSessions: readonly RecentSession[] = [],
+  liveSessions: readonly SessionSummary[] = [],
 ): RecentSession[] {
   const recentIds = new Set(recentSessions.map((session) => session.id))
   const recentPaths = new Set(recentSessions.map((session) => session.sessionPath))
   const pending = sentSessions.filter((session) =>
     !recentIds.has(session.id) && !recentPaths.has(session.sessionPath)
   )
-  return [...pending, ...recentSessions]
+  const visibleIds = new Set([...recentIds, ...pending.map((session) => session.id)])
+  const visiblePaths = new Set([...recentPaths, ...pending.map((session) => session.sessionPath)])
+  const liveRows: RecentSession[] = []
+  for (const session of liveSessions) {
+    if (
+      !session.sessionPath
+      || session.status === 'exited'
+      || visibleIds.has(session.id)
+      || visiblePaths.has(session.sessionPath)
+    ) continue
+    liveRows.push({
+      id: session.id,
+      cwd: session.cwd,
+      name: session.name,
+      sessionPath: session.sessionPath,
+      // Pi summaries do not expose activity timestamps; persisted rows replace these as soon as
+      // their history is available.
+      updatedAt: 0,
+    })
+    visibleIds.add(session.id)
+    visiblePaths.add(session.sessionPath)
+  }
+  return [...pending, ...liveRows, ...recentSessions]
 }
 
 /**

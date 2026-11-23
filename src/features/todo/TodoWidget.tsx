@@ -244,7 +244,12 @@ export function TodoWidget(
   /** Builds a session link from a returned summary, falling back to a computed name. */
   function sessionLink(summary: SessionSummary, computedName?: string): TodoSessionLink | null {
     if (!summary.sessionPath) return null
-    return { id: summary.id, name: computedName ?? summary.name, sessionPath: summary.sessionPath }
+    return {
+      id: summary.id,
+      name: computedName ?? summary.name,
+      sessionPath: summary.sessionPath,
+      cwd: summary.cwd,
+    }
   }
 
   /** Opens a new session with the task text ready to edit. */

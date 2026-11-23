@@ -300,9 +300,7 @@ export function WorkspaceSidebar({
                   >
                     <ChevronIcon collapsed={groupCollapsed} />
                     <span className='workspace-section-name'>{group.name}</span>
-                    {groupCollapsed && group.sessions.length > 0 && (
-                      <span className='workspace-section-count'>{group.sessions.length}</span>
-                    )}
+                    <span className='workspace-section-count'>{group.sessions.length}</span>
                   </button>
                 </Tooltip>
                 <Tooltip label={`New session in ${group.name}`}>
