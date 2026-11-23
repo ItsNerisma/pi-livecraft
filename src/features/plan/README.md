@@ -1,6 +1,6 @@
 # Plan panel
 
-The plan panel shows the macro plan Pi committed for the current task, directly above the composer. It stays out of the way while Pi works, expands to the full step list on demand, and folds away once the turn is over.
+The plan panel shows the macro plan Pi committed for the current task, directly above the composer. It stays out of the way while Pi works, expands to the full step list on demand, and disappears once Pi settles a plan it finished, so it only ever tracks work still in progress.
 
 ## Contract with Pi
 
@@ -23,14 +23,14 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 ## States
 
 - `active` — at least one step is pending or in progress; the header shows progress and the current step.
-- `complete` — every step is `completed` or `skipped`; the header reads "All steps done".
+- `complete` — every step is `completed` or `skipped`; the header reads "All steps done". Pi is still writing the answer that finishes the turn, so the panel leaves as soon as the session is no longer running: a finished plan is only tracked while the agent works, and the conversation's `update_plan` card remains the record.
 - `paused` — Pi is not running and the plan is unfinished; the header carries a `paused` note instead of pretending the step is moving.
 
-`PlanPanel.tsx` owns folding: it stores the identity of the folded plan (`planIdentity()`, the step texts) in `localStorage`, so a status change keeps the panel folded and a different plan reopens once. The panel takes the width of the conversation's message column, not the wider composer, and keeps the same gap above and below.
+`App.tsx` owns that visibility rule, because it is the only place that knows whether the session is running. `PlanPanel.tsx` owns folding: it stores the identity of the folded plan (`planIdentity()`, the step texts) in `localStorage`, so a status change keeps the panel folded and a different plan reopens once. The panel takes the width of the conversation's message column, not the wider composer, and keeps the same gap above and below.
 
 ## Timing
 
-`shared/plan-clock.ts` measures active time for the plan as a whole and for each step. The clock only runs between `agent_start` and `agent_settled`, and the plan total stops once every step is done, so a plan that waits for the user's next message stops counting. The extension folds the elapsed time at each transition and at each settle, and reports the plan total as `activeMs` alongside the `recordedAt` instant and the per-step `activeMs` in `details`.
+`shared/plan-clock.ts` measures active time for the plan as a whole and for each step. The clock only runs between `agent_start` and `agent_settled`, and the plan total stops once every step is done, so the answer Pi writes after the last step is never billed. The extension folds the elapsed time at each transition and at each settle, and reports the plan total as `activeMs` alongside the `recordedAt` instant and the per-step `activeMs` in `details`.
 
 - the header always shows the plan total, including `0s` before the first second; each row shows its step's time once the step has started, `0s` included — a step not yet started shows none;
 - between updates the panel runs the timer locally, and each payload raises the known time to the authoritative value;
