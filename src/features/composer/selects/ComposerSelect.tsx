@@ -77,6 +77,7 @@ export const ComposerSelect = memo(function ComposerSelect(
                     {option.description && <small>{option.description}</small>}
                   </span>
                 </Select.ItemText>
+                <Select.ItemIndicator aria-hidden='true'>✓</Select.ItemIndicator>
                 {onToggleFavorite && (
                   <button
                     aria-label={`Toggle favorite ${option.label}`}
@@ -96,7 +97,6 @@ export const ComposerSelect = memo(function ComposerSelect(
                     ★
                   </button>
                 )}
-                <Select.ItemIndicator aria-hidden='true'>✓</Select.ItemIndicator>
               </Select.Item>
             ))}
           </Select.Viewport>
