@@ -77,26 +77,28 @@ export const ComposerSelect = memo(function ComposerSelect(
                     {option.description && <small>{option.description}</small>}
                   </span>
                 </Select.ItemText>
-                <Select.ItemIndicator aria-hidden='true'>✓</Select.ItemIndicator>
-                {onToggleFavorite && (
-                  <button
-                    aria-label={`Toggle favorite ${option.label}`}
-                    aria-pressed={option.favorite}
-                    className={`composer-select-favorite${option.favorite ? ' active' : ''}`}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      onToggleFavorite(option.value)
-                    }}
-                    onPointerDown={(event) => {
-                      event.preventDefault()
-                      event.stopPropagation()
-                    }}
-                    onPointerUp={(event) => event.stopPropagation()}
-                    type='button'
-                  >
-                    ★
-                  </button>
-                )}
+                <span className='composer-select-option-actions'>
+                  <Select.ItemIndicator aria-hidden='true'>✓</Select.ItemIndicator>
+                  {onToggleFavorite && (
+                    <button
+                      aria-label={`Toggle favorite ${option.label}`}
+                      aria-pressed={option.favorite}
+                      className={`composer-select-favorite${option.favorite ? ' active' : ''}`}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onToggleFavorite(option.value)
+                      }}
+                      onPointerDown={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                      }}
+                      onPointerUp={(event) => event.stopPropagation()}
+                      type='button'
+                    >
+                      ★
+                    </button>
+                  )}
+                </span>
               </Select.Item>
             ))}
           </Select.Viewport>
