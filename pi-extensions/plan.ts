@@ -7,12 +7,14 @@ import {
   parsePlanDetails,
   planMaximumSteps,
   planMinimumSteps,
+  planSettleReminder,
   planStepStatuses,
   planStepTextLimit,
   type Plan,
 } from '../shared/plan.ts'
 
 const toolName = 'update_plan'
+const reminderType = 'plan-reminder'
 
 const rejectedPlanMessage =
   `The plan was rejected. Send the complete plan with ${planMinimumSteps}-${planMaximumSteps} steps, at most one in_progress, and at most ${planStepTextLimit} characters per step.`
@@ -24,6 +26,12 @@ const planPolicy =
 /** Registers the tool that commits and updates the macro plan shown above the composer. */
 export default function registerPlan(pi: ExtensionAPI): void {
   const clock = new PlanClock()
+  /** Last plan Pi committed or resumed, so a settle knows whether it still tracks unfinished work. */
+  let latest: Plan | undefined
+  /** Whether Pi used another tool after that plan: an update written last needs no reminder. */
+  let workedSinceUpdate = false
+  /** One reminder per run, so a model that ignores it cannot keep the run open. */
+  let reminded = false
 
   /** Restores accumulated timings after a resume, reload, or fork without any extra storage. */
   function restore(ctx: ExtensionContext): void {
@@ -36,14 +44,41 @@ export default function registerPlan(pi: ExtensionAPI): void {
       if (message.toolName !== toolName || message.isError === true) continue
       const plan = parsePlanDetails(message.details)
       if (!plan) continue
+      latest = plan
       clock.restore(plan)
       return
     }
   }
 
-  pi.on('agent_start', () => clock.start(Date.now()))
+  pi.on('agent_start', () => {
+    clock.start(Date.now())
+    workedSinceUpdate = false
+    reminded = false
+  })
   pi.on('agent_settled', () => clock.settle(Date.now()))
   pi.on('session_start', (_event, ctx) => restore(ctx))
+
+  pi.on('tool_execution_end', (event) => {
+    if (event.toolName !== toolName) workedSinceUpdate = true
+  })
+
+  // Pi would otherwise settle with the last step still in progress, leaving the panel paused
+  // above a finished answer; one hidden reminder buys the model a request to close its plan.
+  pi.on('agent_before_settle', (event) => {
+    if (reminded || event.outcome !== 'completed') return
+    const reminder = planSettleReminder(latest, workedSinceUpdate)
+    if (reminder === undefined) return
+    reminded = true
+    return {
+      entries: [...event.entries, {
+        type: 'custom_message' as const,
+        customType: reminderType,
+        content: reminder,
+        display: false,
+      }],
+      continue: true,
+    }
+  })
 
   pi.on('before_agent_start', (event) => {
     const options = event.systemPromptOptions
@@ -82,6 +117,8 @@ export default function registerPlan(pi: ExtensionAPI): void {
       const { steps, activeMs } = clock.commit(plan.steps, now)
       // `details` reaches Pi Livecraft and stays out of the model context.
       const committed: Plan = { ...plan, activeMs, recordedAt: now, steps }
+      latest = committed
+      workedSinceUpdate = false
       return {
         content: [{ type: 'text' as const, text: acknowledge(committed) }],
         details: committed,

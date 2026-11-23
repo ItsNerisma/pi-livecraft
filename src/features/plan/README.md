@@ -4,13 +4,14 @@ The plan panel shows the macro plan Pi committed for the current task, directly 
 
 ## Contract with Pi
 
-`pi-extensions/plan.ts` registers the `update_plan` tool and adds one short `planning` section to the system prompt, because a tool that is only advertised in the tool list is rarely adopted. Every call replaces the complete plan, so an update needs no identifier, no diff, and no merge rule. `shared/plan.ts` validates both the model's arguments and the payload the interface reads.
+`pi-extensions/plan.ts` registers the `update_plan` tool and adds one short `planning` section to the system prompt, because a tool that is only advertised in the tool list is rarely adopted. Every call replaces the complete plan, so an update needs no identifier, no diff, and no merge rule. `shared/plan.ts` validates both the model's arguments and the payload the interface reads, and writes the reminder that closes a forgotten plan.
 
 - 2 to 8 steps, at most one `in_progress`, at most 120 characters per step;
 - statuses are `pending`, `in_progress`, `completed`, and `skipped`;
 - steps are written in the language the user writes in, and their text stays stable so the panel keeps their timing;
 - a rejected call returns an error to the model and keeps the previous plan;
 - the tool acknowledges one line of progress so the model never maintains its own count, and names the step to work on next so it transitions the plan instead of finishing every step in one final call.
+- a model that kept working without updating its plan would still settle with the last step in progress, so the extension injects one hidden reminder before settling and one continuation buys it a request to close the plan; an aborted run, a closed plan, and a plan written as the last action get none.
 
 The normalized plan travels in the tool result's `details`. Pi persists `details` in the session, keeps them out of the model context, and forwards them in `tool_execution_end` events, so the panel needs no extension memory, no status channel, and no backend cache.
 
@@ -24,7 +25,7 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 
 - `active` — at least one step is pending or in progress; the header shows progress and the current step.
 - `complete` — every step is `completed` or `skipped`; the header reads "All steps done". Pi is still writing the answer that finishes the turn, so the panel leaves as soon as the session is no longer running: a finished plan is only tracked while the agent works, and the conversation's `update_plan` card remains the record.
-- `paused` — Pi is not running and the plan is unfinished; the header carries a `paused` note instead of pretending the step is moving.
+- `paused` — Pi is not running and the plan is unfinished; the header carries a `paused` note instead of pretending the step is moving. The settle reminder above keeps this state for interrupted runs and for work Pi stopped short of on purpose, not for a plan it forgot to close.
 
 `App.tsx` owns that visibility rule, because it is the only place that knows whether the session is running. `PlanPanel.tsx` owns folding: it stores the identity of the folded plan (`planIdentity()`, the step texts) in `localStorage`, so a status change keeps the panel folded and a different plan reopens once. The panel takes the width of the conversation's message column, not the wider composer, and keeps the same gap above and below.
 

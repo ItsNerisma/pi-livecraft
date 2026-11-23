@@ -80,3 +80,26 @@ function activeTime(value: unknown): number | undefined {
 function isPlanStepStatus(value: unknown): value is PlanStepStatus {
   return typeof value === 'string' && planStepStatuses.includes(value as PlanStepStatus)
 }
+
+function isDone(step: PlanStep): boolean {
+  return step.status === 'completed' || step.status === 'skipped'
+}
+
+/**
+ * Reminder Pi receives when it is about to settle an unfinished plan it kept working on. Without
+ * it the model often answers with the last step still in progress, and the interface can only show
+ * that abandoned plan as paused once the work is actually done.
+ */
+export function planSettleReminder(
+  plan: Plan | undefined,
+  workedSinceUpdate: boolean,
+): string | undefined {
+  if (plan === undefined || !workedSinceUpdate) return undefined
+  const done = plan.steps.filter(isDone).length
+  if (done === plan.steps.length) return undefined
+  const current = plan.steps.find(({ status }) => status === 'in_progress')
+  const progress = `${done}/${plan.steps.length} steps done${
+    current === undefined ? '' : `, with "${current.text}" in progress`
+  }`
+  return `Your plan still reads ${progress}, but you called tools after updating it. If the work is done, call update_plan once with the finished steps marked completed and skip the rest, then reply in one short line about the plan instead of repeating your answer. If you are waiting on the user, leave the plan as it is and say what you need.`
+}

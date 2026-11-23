@@ -6,6 +6,7 @@ import {
   planMaximumSteps,
   planMinimumSteps,
   planProtocol,
+  planSettleReminder,
   planVersion,
   planStepTextLimit,
   type Plan,
@@ -220,6 +221,22 @@ test('describes a committed plan in the conversation thread', () => {
   assert.equal(detailed.headerDetail?.text, '1/3 · Step 2')
   assert.equal(detailed.headerDetail?.title, '1/3 · Step 2')
   assert.deepEqual(invalid, {})
+})
+
+test('reminds Pi to close an unfinished plan it kept working on before settling', () => {
+  const plan = parsePlanArguments(planArguments('completed', 'in_progress', 'pending')) as Plan
+
+  assert.equal(planSettleReminder(undefined, true), undefined)
+  // A plan updated as the last action, or already closed, needs no reminder.
+  assert.equal(planSettleReminder(plan, false), undefined)
+  assert.equal(
+    planSettleReminder(parsePlanArguments(planArguments('completed', 'skipped')) as Plan, true),
+    undefined,
+  )
+  const reminder = planSettleReminder(plan, true) ?? ''
+  assert.match(reminder, /1\/3 steps done/)
+  assert.match(reminder, /"Step 2" in progress/)
+  assert.match(reminder, /update_plan/)
 })
 
 test('reads reported active time from the tool result only', () => {
