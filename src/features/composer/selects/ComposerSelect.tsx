@@ -86,7 +86,11 @@ export const ComposerSelect = memo(function ComposerSelect(
                       event.stopPropagation()
                       onToggleFavorite(option.value)
                     }}
-                    onPointerDown={(event) => event.stopPropagation()}
+                    onPointerDown={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                    }}
+                    onPointerUp={(event) => event.stopPropagation()}
                     type='button'
                   >
                     ★
