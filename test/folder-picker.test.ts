@@ -101,6 +101,46 @@ test('passes the Windows starting directory only through the environment', () =>
   assert.equal(invocation.env?.PI_LIVECRAFT_PICK_INITIAL, 'C:\\hostile & ü')
 })
 
+test('uses the Windows dialog first in WSL and converts its selected path back', async () => {
+  const runs: FakeRun[] = []
+  const { spawnProcess } = fakeSpawn(runs, () => ({ output: 'C:\\Users\\Ada\\Projects\n' }))
+  const conversions: Array<[string, 'to-windows' | 'to-wsl']> = []
+  const convertWslPath = async (
+    path: string,
+    direction: 'to-windows' | 'to-wsl',
+  ): Promise<string> => {
+    conversions.push([path, direction])
+    return direction === 'to-windows'
+      ? '\\\\wsl.localhost\\Ubuntu\\home\\ada\\work'
+      : '/mnt/c/Users/Ada/Projects'
+  }
+
+  const selected = await pickDirectory('wsl', '/home/ada/work', spawnProcess, convertWslPath)
+
+  assert.equal(selected, '/mnt/c/Users/Ada/Projects')
+  assert.deepEqual(runs.map(({ command }) => command), ['powershell.exe'])
+  assert.equal(
+    runs[0].env?.PI_LIVECRAFT_PICK_INITIAL,
+    '\\\\wsl.localhost\\Ubuntu\\home\\ada\\work',
+  )
+  assert.ok(runs[0].env?.WSLENV?.split(':').includes('PI_LIVECRAFT_PICK_INITIAL'))
+  assert.deepEqual(conversions, [
+    ['/home/ada/work', 'to-windows'],
+    ['C:\\Users\\Ada\\Projects', 'to-wsl'],
+  ])
+})
+
+test('falls back to Linux dialogs in WSL when Windows interop is unavailable', async () => {
+  const runs: FakeRun[] = []
+  const { spawnProcess } = fakeSpawn(runs, (run) =>
+    run.command === 'powershell.exe'
+      ? { error: missingExecutable() }
+      : { output: '/home/ada/chosen' })
+
+  assert.equal(await pickDirectory('wsl', undefined, spawnProcess), '/home/ada/chosen')
+  assert.deepEqual(runs.map(({ command }) => command), ['powershell.exe', 'zenity'])
+})
+
 test('passes the macOS starting directory as an argument, outside the AppleScript source', () => {
   const hostilePath = '/Users/a "quoted" dir'
   const [invocation] = folderPickerInvocations('darwin', hostilePath)

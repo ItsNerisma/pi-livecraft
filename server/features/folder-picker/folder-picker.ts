@@ -1,5 +1,9 @@
 import { spawn, type ChildProcess } from 'node:child_process'
-import { getDesktopPlatform } from '../../system-integration.ts'
+import {
+  externalWorkspacePath,
+  getDesktopPlatform,
+  internalWorkspacePath,
+} from '../../system-integration.ts'
 
 export type FolderPickerPlatform = 'darwin' | 'linux' | 'wsl' | 'windows'
 
@@ -15,6 +19,8 @@ type SpawnProcess = (
   args: string[],
   options: Parameters<typeof spawn>[2],
 ) => ChildProcess
+type WslPathDirection = 'to-windows' | 'to-wsl'
+type WslPathConverter = (path: string, direction: WslPathDirection) => Promise<string>
 
 const pickerTitle = 'Select a workspace folder'
 
@@ -114,15 +120,59 @@ export async function pickDirectory(
   platform = getFolderPickerPlatform(),
   initialPath?: string,
   spawnProcess: SpawnProcess = spawn,
+  convertWslPath: WslPathConverter = defaultWslPathConverter,
 ): Promise<string | null> {
-  for (const invocation of folderPickerInvocations(platform, initialPath)) {
+  const invocations = platform === 'wsl'
+    ? await wslFolderPickerInvocations(initialPath, convertWslPath)
+    : folderPickerInvocations(platform, initialPath)
+  for (const invocation of invocations) {
+    let selected: string | null
     try {
-      return await runPicker(invocation, platform, spawnProcess)
+      selected = await runPicker(invocation, platform, spawnProcess)
     } catch (error) {
-      if (!isMissingExecutable(error)) throw error
+      if (isMissingExecutable(error)) continue
+      if (platform === 'wsl' && invocation.command === 'powershell.exe') continue
+      throw error
     }
+    if (platform === 'wsl' && invocation.command === 'powershell.exe' && selected)
+      return convertWslPath(selected, 'to-wsl')
+    return selected
   }
   throw new FolderPickerUnavailableError()
+}
+
+/** Tries the Windows-native dialog first, then any Linux dialog available in WSL. */
+async function wslFolderPickerInvocations(
+  initialPath: string | undefined,
+  convertPath: WslPathConverter,
+): Promise<FolderPickerInvocation[]> {
+  let windowsInitialPath: string | undefined
+  if (initialPath) {
+    try {
+      windowsInitialPath = await convertPath(initialPath, 'to-windows')
+    } catch {
+      // The native dialog can still open at its default location.
+    }
+  }
+  const wslEnv = withWslPathInterop(process.env)
+  return [
+    ...folderPickerInvocations('windows', windowsInitialPath, wslEnv),
+    ...folderPickerInvocations('linux', initialPath),
+  ]
+}
+
+function withWslPathInterop(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const variableName = 'PI_LIVECRAFT_PICK_INITIAL'
+  const entries = (env.WSLENV ?? '').split(':').filter(Boolean)
+  const existing = entries.filter((entry) => entry.split('/')[0] !== variableName)
+  // This path is already converted with wslpath, so WSLENV must pass it through unchanged.
+  return { ...env, WSLENV: [...existing, variableName].join(':') }
+}
+
+function defaultWslPathConverter(path: string, direction: WslPathDirection): Promise<string> {
+  return direction === 'to-windows'
+    ? externalWorkspacePath(path, 'wsl')
+    : internalWorkspacePath(path, 'wsl')
 }
 
 /** Runs one candidate dialog: a path on success, null on cancel, and an error otherwise. */

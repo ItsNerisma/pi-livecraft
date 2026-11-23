@@ -6,6 +6,7 @@ import {
   externalWorkspacePath,
   getDesktopPlatform,
   getWslDistributionName,
+  internalWorkspacePath,
   openPath,
 } from '../server/system-integration.ts'
 
@@ -103,4 +104,12 @@ test('converts WSL workspace paths through the injected converter', async () => 
     return '\\\\wsl.localhost\\Ubuntu\\home\\user\\project'
   })
   assert.equal(converted, '\\\\wsl.localhost\\Ubuntu\\home\\user\\project')
+})
+
+test('converts Windows-selected paths into WSL paths through the injected converter', async () => {
+  const converted = await internalWorkspacePath('C:\\Users\\Ada\\project', 'wsl', async (path) => {
+    assert.equal(path, 'C:\\Users\\Ada\\project')
+    return '/mnt/c/Users/Ada/project'
+  })
+  assert.equal(converted, '/mnt/c/Users/Ada/project')
 })

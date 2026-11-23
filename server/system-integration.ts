@@ -50,10 +50,30 @@ export function externalWorkspacePath(
   return platform === 'wsl' ? convertPath(workspacePath) : Promise.resolve(workspacePath)
 }
 
+/** Returns a WSL path from a path chosen by a Windows application. */
+export function internalWorkspacePath(
+  workspacePath: string,
+  platform = getDesktopPlatform(),
+  convertPath = convertWindowsPath,
+): Promise<string> {
+  return platform === 'wsl' ? convertPath(workspacePath) : Promise.resolve(workspacePath)
+}
+
 /** Converts a WSL path to the Windows format understood by Windows applications. */
 function convertWslPath(workspacePath: string): Promise<string> {
+  return convertWslPathFormat(workspacePath, '-w')
+}
+
+/** Converts a Windows path to the WSL format understood by the backend. */
+function convertWindowsPath(workspacePath: string): Promise<string> {
+  return convertWslPathFormat(workspacePath, '-u')
+}
+
+function convertWslPathFormat(workspacePath: string, format: '-w' | '-u'): Promise<string> {
   return new Promise((resolve, reject) => {
-    const process = spawn('wslpath', ['-w', workspacePath], { stdio: ['ignore', 'pipe', 'pipe'] })
+    const process = spawn('wslpath', [format, workspacePath], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
     let output = ''
     let errorOutput = ''
     process.stdout.on('data', (chunk: Buffer) => {
