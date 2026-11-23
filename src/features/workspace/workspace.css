@@ -609,9 +609,6 @@
   font-size: 12.5px;
   line-height: 1.45;
 }
-.new-session-folder + .recent-workspaces {
-  margin-top: 14px;
-}
 .new-session-or {
   display: flex;
   align-items: center;
@@ -686,67 +683,6 @@
 }
 .new-session-folder .new-session-or {
   margin: 11px 0 8px;
-}
-.recent-workspaces > .new-session-or {
-  margin-bottom: 7px;
-}
-.recent-workspaces > div {
-  display: grid;
-  gap: 2px;
-  max-height: 104px;
-  overflow: auto;
-}
-/* Folder name carries the recognition; the full path stays available but quiet. */
-.recent-workspaces button {
-  display: flex;
-  align-items: baseline;
-  gap: 9px;
-  overflow: hidden;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  padding: 5px 8px;
-  background: var(--surface-raised);
-  text-align: left;
-  transition:
-    border-color 180ms ease,
-    background 180ms ease,
-    color 180ms ease,
-    transform 180ms ease;
-}
-.recent-workspaces button > strong {
-  flex: none;
-  color: var(--ink);
-  font-size: 12.5px;
-  font-weight: 700;
-}
-.recent-workspaces button > span {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--muted);
-  font: 11.5px ui-monospace, monospace;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.recent-workspaces button:hover:not(:disabled) {
-  border-color: var(--line-strong);
-  background: var(--accent-soft);
-}
-.recent-workspaces button:hover:not(:disabled) > strong {
-  color: var(--accent-hover);
-}
-.recent-workspaces button[aria-pressed="true"] {
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-  background: var(--accent-soft);
-}
-.recent-workspaces button[aria-pressed="true"] > strong {
-  color: var(--accent-hover);
-}
-.recent-workspaces button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.recent-workspaces button:active:not(:disabled) {
-  transform: scale(0.97);
 }
 .new-session-modal .modal-actions {
   margin-top: 14px;
@@ -912,7 +848,6 @@
   .workspace-section-new,
   .new-session,
   .new-session-browse,
-  .recent-workspaces button,
   .new-session-modal .modal-actions button {
     transition: none;
   }

@@ -7,22 +7,20 @@ import {
 } from 'react'
 import { listDirectories, pickDirectory } from '../../api.ts'
 import { directoryCompletionTarget } from './directory-completion.ts'
-import { workspaceName } from './workspace-groups.ts'
 
 interface NewSessionDialogProps {
-  recentPaths: string[]
   onClose: () => void
   onCreate: (path: string) => Promise<void>
   onError: (cause: unknown) => void
 }
 
 /**
- * Creates a session in a workspace chosen through the host's native folder dialog,
- * a recent workspace, or a typed path. The typed field stays available because a
- * headless host may not provide any native dialog.
+ * Creates a session in a workspace chosen through the host's native folder dialog
+ * or a typed path. The typed field stays available because a headless host may not
+ * provide any native dialog.
  */
 export function NewSessionDialog(
-  { recentPaths, onClose, onCreate, onError }: NewSessionDialogProps,
+  { onClose, onCreate, onError }: NewSessionDialogProps,
 ) {
   const [path, setPath] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -160,8 +158,6 @@ export function NewSessionDialog(
     }
   }
 
-  const visibleRecentPaths = recentPaths.filter((recentPath) => recentPath !== path)
-
   return (
     <div
       className='modal-backdrop new-session-backdrop'
@@ -249,27 +245,6 @@ export function NewSessionDialog(
             Tab completes · ↑↓ navigate · Esc cancels
           </p>
         </div>
-        {visibleRecentPaths.length > 0 && (
-          <section aria-labelledby='new-session-recent-title' className='recent-workspaces'>
-            <strong className='new-session-or' id='new-session-recent-title'>
-              Or choose a recent one
-            </strong>
-            <div>
-              {visibleRecentPaths
-                .map((recentPath) => (
-                  <button
-                    aria-pressed={path !== '' && recentPath === path}
-                    key={recentPath}
-                    onClick={() => updatePath(recentPath)}
-                    type='button'
-                  >
-                    <strong>{workspaceName(recentPath, visibleRecentPaths)}</strong>
-                    <span>{recentPath}</span>
-                  </button>
-                ))}
-            </div>
-          </section>
-        )}
         {error && <p className='new-session-error' id='new-session-error' role='alert'>{error}</p>}
         <div className='modal-actions'>
           <button disabled={busy} onClick={onClose} type='button'>Cancel</button>

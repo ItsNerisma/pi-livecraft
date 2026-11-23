@@ -1404,7 +1404,6 @@ function App() {
 
       {newSessionDialogOpen && (
         <NewSessionDialog
-          recentPaths={groups.map((group) => group.path)}
           onClose={() => setNewSessionDialogOpen(false)}
           onError={(cause) => showToast('error', messageOf(cause))}
           onCreate={async (path) => {
