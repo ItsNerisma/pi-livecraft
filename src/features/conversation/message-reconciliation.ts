@@ -1,5 +1,5 @@
-import { isObject } from '../../../shared/is-object.ts'
 import type { JsonObject } from '../../../shared/types.ts'
+import { messageText } from './message-display.ts'
 import { toolCallsInMessage, type ToolCall } from './tool-protocol.ts'
 
 export type AssistantTurnPart = { kind: 'message'; message: JsonObject } | {
@@ -31,18 +31,7 @@ export function sameAssistantMessage(left: JsonObject, right: JsonObject): boole
 /** Extracts the concatenated text from a user message's content, or null when no text is present. */
 function extractUserText(message: JsonObject): string | null {
   if (message.role !== 'user') return null
-  const content = message.content
-  if (typeof content === 'string') return content
-  if (Array.isArray(content)) {
-    const text = content
-      .filter((part): part is { type: string; text: string } =>
-        isObject(part) && part.type === 'text' && typeof part.text === 'string'
-      )
-      .map((part) => part.text)
-      .join('')
-    return text || null
-  }
-  return null
+  return messageText(message.content) || null
 }
 
 /** Returns a stable comparison key without reserializing the same message for every candidate. */

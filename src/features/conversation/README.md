@@ -8,13 +8,14 @@ Pure protocol, reconciliation, and display rules stay separate:
 
 - `tool-protocol.ts` interprets tool calls and execution updates;
 - `message-reconciliation.ts` merges history with live messages;
-- `message-display.ts` identifies protocol content visible in the thread;
+- `message-display.ts` identifies protocol content visible in the thread and extracts its text;
 - `tool-presentation.ts` and `tool-call-presentations/` describe tool-specific display;
 - `event-sequence.ts` accepts new sequence numbers and rejects duplicates.
 
 Presentation follows the same ownership boundaries:
 
 - `Conversation.tsx` assembles the thread and owns scrolling and navigation;
+- `UserMessageRail.tsx` renders the gutter navigator for user prompts;
 - `MessageCard.tsx` renders protocol messages and turn usage;
 - `ActivityIndicator.tsx` renders the current Pi activity;
 - `Markdown.tsx` owns Markdown and front matter rendering;
@@ -22,9 +23,17 @@ Presentation follows the same ownership boundaries:
 - `ToolCallOutput.tsx` renders file previews and expanded output;
 - `ToolCallEditDiff.tsx` renders edit diffs.
 
-Styles are split by the same surfaces: `conversation.css` for the viewport and empty/loading states, `messages.css`, `tool-call.css`, `conversation-actions.css`, `activity.css`, and `conversation-motion.css`. Composer slash-command styles remain in `composer.css`.
+Styles are split by the same surfaces: `conversation.css` for the shell, viewport, and empty/loading states, `messages.css`, `tool-call.css`, `conversation-actions.css`, `user-message-rail.css`, `activity.css`, and `conversation-motion.css`. Composer slash-command styles remain in `composer.css`.
 
 Conversation views are simplified (messages only), semi-detailed (tool headers only; expanded calls show their full output with the existing scroll limits), or detailed (calls with their previews).
+
+## User message rail
+
+`UserMessageRail.tsx` renders marks in the thread gutter, one per user prompt. Hovering previews the prompt text and its send time through the shared `Tooltip`; clicking scrolls the thread back to that message and highlights it.
+
+`user-message-anchors.ts` derives the marks from the reconciled thread entries, so prompts that only carry attachments are labelled instead of dropped. History prompts are addressed by their rendered index (`[data-message-index]`); prompts Pi has not reported yet stay addressable by streamed key (`[data-message-key]`). Both paths reuse the navigation that session-analysis targets already use, which mounts missing history, suspends auto-scroll, and resumes it only when the user returns to the bottom.
+
+The rail stays hidden for a single prompt and below 900px, where the message column no longer leaves a gutter.
 
 ## Tool call presentations
 

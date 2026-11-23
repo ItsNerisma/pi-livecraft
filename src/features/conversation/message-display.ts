@@ -18,6 +18,17 @@ export function isVisibleConversationMessage(message: JsonObject): boolean {
     && hasVisibleContent(message.content ?? message.output)
 }
 
+/** Concatenates the text parts of protocol content for display, comparison, and previews. */
+export function messageText(content: unknown): string {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  return content
+    .flatMap((part) =>
+      isObject(part) && part.type === 'text' && typeof part.text === 'string' ? [part.text] : []
+    )
+    .join('')
+}
+
 /** Reports whether protocol content contains text, thinking, or a supported inline image. */
 export function hasVisibleContent(content: unknown): boolean {
   if (typeof content === 'string') return content.trim().length > 0

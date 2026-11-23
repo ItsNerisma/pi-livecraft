@@ -9,6 +9,7 @@
 @import "./features/conversation/tool-call.css";
 @import "./features/conversation/conversation-actions.css";
 @import "./features/conversation/activity.css";
+@import "./features/conversation/user-message-rail.css";
 @import "./features/conversation/conversation-motion.css";
 @import "./features/plan/plan.css";
 @import "./features/session-analysis/session-analysis.css";

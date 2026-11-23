@@ -1,3 +1,11 @@
+/* Keeps thread navigation in place around the scrolling conversation. */
+.conversation-shell {
+  position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+}
 .conversation {
   position: relative;
   min-width: 0;
