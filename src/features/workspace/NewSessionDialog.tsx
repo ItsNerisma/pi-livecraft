@@ -195,6 +195,7 @@ export function NewSessionDialog(
             <FolderIcon />
             {browsing ? 'Opening…' : 'Choose folder…'}
           </button>
+          <p className='new-session-or'>Or type a path</p>
           <input
             aria-activedescendant={activeSuggestion >= 0
               ? `new-session-suggestion-${activeSuggestion}`
@@ -250,7 +251,9 @@ export function NewSessionDialog(
         </div>
         {visibleRecentPaths.length > 0 && (
           <section aria-labelledby='new-session-recent-title' className='recent-workspaces'>
-            <strong id='new-session-recent-title'>Recent workspaces</strong>
+            <strong className='new-session-or' id='new-session-recent-title'>
+              Or choose a recent one
+            </strong>
             <div>
               {visibleRecentPaths
                 .map((recentPath) => (
