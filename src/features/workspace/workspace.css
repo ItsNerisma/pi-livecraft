@@ -364,6 +364,30 @@
   min-width: 0;
   padding-left: 14px;
 }
+.session-list-more {
+  min-height: 28px;
+  margin-top: 2px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 2px 8px 2px 16px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: left;
+  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+.session-list-more:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--ink);
+}
+.session-list-more:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.session-list-more:active:not(:disabled) {
+  transform: scale(0.98);
+}
 .session-item {
   display: flex;
   align-items: center;

@@ -14,7 +14,11 @@ import { SessionStatusIndicator } from './SessionStatusIndicator.tsx'
 import type { SessionActionTarget } from './sidebar-sessions.ts'
 import { SessionRenameDialog } from './SessionRenameDialog.tsx'
 import type { WorkspaceGroup } from './workspace-groups.ts'
-import { maxWorkspaceSidebarWidth, minWorkspaceSidebarWidth } from './workspace-sidebar.ts'
+import {
+  maxWorkspaceSidebarWidth,
+  minWorkspaceSidebarWidth,
+  visibleWorkspaceSessionCount,
+} from './workspace-sidebar.ts'
 
 interface ContextMenuState {
   target: SessionActionTarget
@@ -71,13 +75,37 @@ export function WorkspaceSidebar({
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [contextMenuPosition, setContextMenuPosition] = useState({ left: 0, top: 0 })
   const [renameTarget, setRenameTarget] = useState<SessionActionTarget | null>(null)
+  const [expandedWorkspacePaths, setExpandedWorkspacePaths] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  )
+  const revealedSelectionIdRef = useRef('')
   const selectedSessionRef = useRef<HTMLButtonElement>(null)
   const contextMenuRef = useRef<HTMLDivElement>(null)
   const contextMenuTriggerRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     selectedSessionRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-  }, [groups, selectedId])
+  }, [groups, selectedId, expandedWorkspacePaths])
+
+  // A selection made outside the list, such as a shortcut or the restored session, must stay
+  // reachable, so the section holding it reveals its full history once.
+  useEffect(() => {
+    if (!selectedId || selectedId === revealedSelectionIdRef.current) return
+    const sessionPath = sessions.find((session) => session.id === selectedId)?.sessionPath
+    const group = sessionPath
+      ? groups.find((candidate) =>
+        candidate.sessions.some((row) => row.sessionPath === sessionPath)
+      )
+      : undefined
+    // History may still be loading; the next render resolves the section.
+    if (!group) return
+    revealedSelectionIdRef.current = selectedId
+    const index = group.sessions.findIndex((row) => row.sessionPath === sessionPath)
+    if (index < visibleWorkspaceSessionCount) return
+    setExpandedWorkspacePaths((current) =>
+      current.has(group.path) ? current : new Set(current).add(group.path)
+    )
+  }, [groups, selectedId, sessions])
 
   useLayoutEffect(() => {
     if (!contextMenu || !contextMenuRef.current) return
@@ -178,6 +206,27 @@ export function WorkspaceSidebar({
     } finally {
       setCreatingInPath('')
     }
+  }
+
+  function toggleWorkspace(path: string): void {
+    // Collapsing a section drops its extra rows, so reopening it starts from the default step.
+    if (!collapsedWorkspacePaths.has(path)) {
+      setExpandedWorkspacePaths((current) => {
+        if (!current.has(path)) return current
+        const next = new Set(current)
+        next.delete(path)
+        return next
+      })
+    }
+    onToggleWorkspaceCollapsed(path)
+  }
+
+  function toggleWorkspaceExpanded(path: string): void {
+    setExpandedWorkspacePaths((current) => {
+      const next = new Set(current)
+      if (!next.delete(path)) next.add(path)
+      return next
+    })
   }
 
   function startResize(event: ReactPointerEvent<HTMLDivElement>): void {
@@ -286,6 +335,11 @@ export function WorkspaceSidebar({
         )}
         {groups.map((group, index) => {
           const groupCollapsed = collapsedWorkspacePaths.has(group.path)
+          const expanded = expandedWorkspacePaths.has(group.path)
+          const hiddenSessionCount = group.sessions.length - visibleWorkspaceSessionCount
+          const visibleSessions = expanded
+            ? group.sessions
+            : group.sessions.slice(0, visibleWorkspaceSessionCount)
           const listId = `workspace-section-${index}`
           return (
             <section className='workspace-section' key={group.path}>
@@ -295,7 +349,7 @@ export function WorkspaceSidebar({
                     aria-controls={listId}
                     aria-expanded={!groupCollapsed}
                     className='workspace-section-toggle'
-                    onClick={() => onToggleWorkspaceCollapsed(group.path)}
+                    onClick={() => toggleWorkspace(group.path)}
                     type='button'
                   >
                     <ChevronIcon collapsed={groupCollapsed} />
@@ -317,7 +371,7 @@ export function WorkspaceSidebar({
               </div>
               {!groupCollapsed && (
                 <div className='session-list' id={listId}>
-                  {group.sessions.map((recentSession) => {
+                  {visibleSessions.map((recentSession) => {
                     const activeSession = sessions.find((session) =>
                       session.sessionPath === recentSession.sessionPath
                       && session.status !== 'exited'
@@ -365,6 +419,17 @@ export function WorkspaceSidebar({
                       </Tooltip>
                     )
                   })}
+                  {hiddenSessionCount > 0 && (
+                    <button
+                      aria-controls={listId}
+                      aria-expanded={expanded}
+                      className='session-list-more'
+                      onClick={() => toggleWorkspaceExpanded(group.path)}
+                      type='button'
+                    >
+                      {expanded ? 'Show less' : `Show ${hiddenSessionCount} more`}
+                    </button>
+                  )}
                   {group.sessions.length === 0 && (
                     <p className='workspace-section-empty'>No saved sessions yet.</p>
                   )}
