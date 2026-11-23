@@ -24,6 +24,8 @@ interface WorkspaceSessionsOptions {
 interface StartSessionOptions {
   draftMessage?: string
   initialMessage?: string
+  /** Whether selecting the launched session may reopen its collapsed section. */
+  revealSection?: boolean
 }
 
 const COMPLETED_SESSIONS_KEY = 'pi-livecraft.completed-sessions'
@@ -67,6 +69,8 @@ export function useWorkspaceSessions(
   const completedSessionIdsRef = useRef(completedSessionIds)
   const selectedIdRef = useRef(selectedId)
   const creatingSessionRef = useRef(false)
+  /** Session created in a section, whose selection must keep that section closed. */
+  const quietSelectionIdRef = useRef('')
   const refreshVersionRef = useRef(0)
   const notifiedWorkspacePathRef = useRef<string | null>(null)
   sessionsRef.current = sessions
@@ -112,10 +116,15 @@ export function useWorkspaceSessions(
   }, [onWorkspaceSelected, workspacePath])
 
   // A session selected from anywhere reveals its section. Only a selection change
-  // reopens it, so collapsing the current section survives later refreshes.
+  // reopens it, so collapsing the current section survives later refreshes. A session
+  // just created in a section does not reopen it: that section stays as the user left it.
   const selectedSessionCwd = selectedSession?.cwd
   useEffect(() => {
     if (!selectedId || !selectedSessionCwd) return
+    if (quietSelectionIdRef.current === selectedId) {
+      quietSelectionIdRef.current = ''
+      return
+    }
     setCollapsedWorkspacePaths((current) =>
       current.has(selectedSessionCwd) ? withoutPath(current, selectedSessionCwd) : current
     )
@@ -245,6 +254,7 @@ export function useWorkspaceSessions(
       setSelectedId('')
       try {
         const session = await start()
+        if (options.revealSection === false) quietSelectionIdRef.current = session.id
         await refreshSessions()
         selectSession(session.id)
         if (options.draftMessage) onDraftMessage(session.id, options.draftMessage)
@@ -276,7 +286,10 @@ export function useWorkspaceSessions(
   /** Creates a session inside a workspace, selects it, and keeps the folder in the sidebar. */
   const createSessionInWorkspace = useCallback(
     async (cwd: string, options: StartSessionOptions = {}): Promise<SessionSummary | null> => {
-      const session = await startAndSelectSession(() => createSession(cwd), options)
+      const session = await startAndSelectSession(
+        () => createSession(cwd),
+        { ...options, revealSection: false },
+      )
       // Only a real session makes the folder worth keeping as an empty section.
       if (session) addWorkspacePath(cwd)
       return session
