@@ -606,6 +606,9 @@ function App() {
       if (event.type === 'agent_start') updateSession(sessionId, { status: 'running' })
       if (event.type === 'agent_settled') {
         updateSession(sessionId, { status: 'idle' })
+        // Supersede any in-flight session refresh that may have captured the pre-settle `running`
+        // status; otherwise the completed-plan visibility rule can remain stuck until page reload.
+        void refreshSessions()
         markSessionCompleted(sessionId)
         if (tabUnwatched() && sessionId === selectedIdRef.current)
           setHiddenSessionCompleted(true)
@@ -692,6 +695,7 @@ function App() {
       handlePiEvent,
       markSessionCompleted,
       refreshSessionQuotas,
+      refreshSessions,
       scheduleGitRefresh,
       renameSession,
       selectCreatedSession,
