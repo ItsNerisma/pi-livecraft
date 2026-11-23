@@ -180,7 +180,7 @@ export function NewSessionDialog(
         role='dialog'
       >
         <h2 id='new-session-title'>New session</h2>
-        <p>Pick the folder this session should work in.</p>
+        <p>Pick the folder to work in.</p>
         <button
           className='new-session-browse'
           disabled={busy}

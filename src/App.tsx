@@ -1328,7 +1328,7 @@ function App() {
                   onClick={() => setNewSessionDialogOpen(true)}
                   type='button'
                 >
-                  ＋ New session
+                  ＋ New workspace
                 </button>
               </section>
               <ToastStack onDismiss={dismissToast} standalone toasts={visibleToasts} />

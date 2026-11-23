@@ -327,7 +327,7 @@ export function WorkspaceSidebar({
         </Tooltip>
       </div>
       <button className='new-session' onClick={onNewSession} type='button'>
-        ＋ New session
+        ＋ New workspace
       </button>
       <nav className='workspace-sections' aria-label='Workspaces and their Pi sessions'>
         {isRefreshing && groups.length === 0 && (
