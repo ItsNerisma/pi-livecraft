@@ -1,5 +1,6 @@
 import type {
   DirectoryListing,
+  DirectoryPickResult,
   GitFileDiff,
   GitPushResult,
   GitResetResult,
@@ -71,12 +72,21 @@ export async function restartManager(): Promise<void> {
   })
 }
 
-export async function listRecentSessions(cwd: string): Promise<RecentSession[]> {
-  return request<RecentSession[]>(`/api/sessions/recent?cwd=${encodeURIComponent(cwd)}`)
+/** Lists resumable sessions from every workspace; each result carries its own `cwd`. */
+export async function listRecentSessions(): Promise<RecentSession[]> {
+  return request<RecentSession[]>('/api/sessions/recent')
 }
 
 export async function listDirectories(path: string): Promise<DirectoryListing> {
   return request<DirectoryListing>(`/api/directories?path=${encodeURIComponent(path)}`)
+}
+
+/** Opens the host's native folder dialog, starting near the current workspace when provided. */
+export async function pickDirectory(cwd?: string): Promise<DirectoryPickResult> {
+  return request<DirectoryPickResult>('/api/directories/pick', {
+    method: 'POST',
+    body: JSON.stringify({ cwd }),
+  })
 }
 
 export async function openExplorer(cwd: string): Promise<void> {

@@ -1,23 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   closeSession as requestCloseSession,
-  listDirectories,
+  createSession,
   listRecentSessions,
   listSessions,
+  openSession as requestOpenSession,
   renameSession as renameStoredSession,
   sendPiCommand,
 } from '../../api.ts'
 import type { JsonObject, RecentSession, SessionSummary } from '../../../shared/types.ts'
-import { isObject } from '../../../shared/is-object.ts'
 import { promptSessionTitle } from '../composer/prompt-title.ts'
-import { recentWorkspaces } from './recent-workspaces.ts'
-import {
-  nextActiveSessionId,
-  pickSessionOnOpen,
-  sidebarSessions,
-  type PinnedSession,
-  type SessionActionTarget,
-} from './sidebar-sessions.ts'
+import { nextActiveSessionId, type SessionActionTarget } from './sidebar-sessions.ts'
+import { workspaceGroups } from './workspace-groups.ts'
 
 interface WorkspaceSessionsOptions {
   onDraftMessage: (sessionId: string, message: string) => void
@@ -30,14 +24,22 @@ interface WorkspaceSessionsOptions {
 interface StartSessionOptions {
   draftMessage?: string
   initialMessage?: string
-  refreshCwd?: string
 }
 
 const COMPLETED_SESSIONS_KEY = 'pi-livecraft.completed-sessions'
-const PINNED_SESSIONS_KEY = 'pi-livecraft.pinned-sessions'
+const WORKSPACE_PATHS_KEY = 'pi-livecraft.workspace-paths'
+const COLLAPSED_WORKSPACES_KEY = 'pi-livecraft.collapsed-workspaces'
+const ACTIVE_WORKSPACE_KEY = 'pi-livecraft.active-workspace'
+const SELECTED_SESSION_KEY = 'pi-livecraft.selected-session'
 const MAX_COMPLETED_SESSIONS = 30
 
-/** Owns workspace selection, session lists, persistence, and session creation. */
+/**
+ * Owns the workspace sections, their session lists, persistence, and session creation.
+ *
+ * There is no main workspace: the active directory follows the selected session and
+ * falls back to the workspace used last, so workspace-dependent features keep a
+ * stable context while the user browses sections.
+ */
 export function useWorkspaceSessions(
   { onDraftMessage, onError, onInitialMessageSent, onSessionsRefreshed, onWorkspaceSelected }:
     WorkspaceSessionsOptions,
@@ -48,52 +50,43 @@ export function useWorkspaceSessions(
   const [completedSessionIds, setCompletedSessionIds] = useState<ReadonlySet<string>>(
     readCompletedSessionIds,
   )
-  const [pinnedSessions, setPinnedSessions] = useState<PinnedSession[]>(readPinnedSessions)
   const [isRefreshingSessions, setIsRefreshingSessions] = useState(true)
-  const [workspacePath, setWorkspacePath] = useState(() =>
-    window.localStorage.getItem('pi-livecraft.workspace-path') ?? '.'
+  const [workspacePaths, setWorkspacePaths] = useState<string[]>(readWorkspacePaths)
+  const [collapsedWorkspacePaths, setCollapsedWorkspacePaths] = useState<ReadonlySet<string>>(
+    readCollapsedWorkspacePaths,
   )
-  const [recentWorkspacePaths, setRecentWorkspacePaths] = useState(() =>
-    recentWorkspaces(
-      window.localStorage.getItem('pi-livecraft.workspace-path') ?? '.',
-      readRecentWorkspaces(),
-    )
+  const [activeWorkspacePath, setActiveWorkspacePath] = useState(
+    () => window.localStorage.getItem(ACTIVE_WORKSPACE_KEY) ?? '',
   )
-  const [directoryPickerOpen, setDirectoryPickerOpen] = useState(false)
-  const [selectedId, setSelectedId] = useState('')
+  const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false)
+  const [selectedId, setSelectedId] = useState(
+    () => window.localStorage.getItem(SELECTED_SESSION_KEY) ?? '',
+  )
   const [creatingSession, setCreatingSession] = useState(false)
   const sessionsRef = useRef(sessions)
-  const recentSessionsRef = useRef(recentSessions)
-  const sentSessionsRef = useRef(sentSessions)
   const completedSessionIdsRef = useRef(completedSessionIds)
   const selectedIdRef = useRef(selectedId)
   const creatingSessionRef = useRef(false)
   const refreshVersionRef = useRef(0)
-  const autoSelectOnRefreshRef = useRef(true)
+  const notifiedWorkspacePathRef = useRef<string | null>(null)
   sessionsRef.current = sessions
-  recentSessionsRef.current = recentSessions
-  sentSessionsRef.current = sentSessions
   completedSessionIdsRef.current = completedSessionIds
   selectedIdRef.current = selectedId
 
-  useEffect(() => {
-    if (window.localStorage.getItem('pi-livecraft.workspace-path') !== null) return
-    let active = true
-    void listDirectories('.')
-      .then(({ path }) => {
-        if (!active || window.localStorage.getItem('pi-livecraft.workspace-path') !== null) return
-        setWorkspacePath(path)
-        setRecentWorkspacePaths(recentWorkspaces(path, readRecentWorkspaces()))
-      })
-      .catch(() => undefined)
-    return () => {
-      active = false
-    }
-  }, [])
+  const groups = useMemo(
+    () => workspaceGroups(recentSessions, sentSessions, workspacePaths),
+    [recentSessions, sentSessions, workspacePaths],
+  )
+  const groupsRef = useRef(groups)
+  groupsRef.current = groups
+
+  const selectedSession = sessions.find((session) => session.id === selectedId)
+  /** Workspace-dependent features follow the selected session, else the last used workspace. */
+  const workspacePath = selectedSession?.cwd ?? activeWorkspacePath
 
   useEffect(() => {
-    if (selectedId) window.localStorage.setItem('pi-livecraft.selected-session', selectedId)
-    else window.localStorage.removeItem('pi-livecraft.selected-session')
+    if (selectedId) window.localStorage.setItem(SELECTED_SESSION_KEY, selectedId)
+    else window.localStorage.removeItem(SELECTED_SESSION_KEY)
     setCompletedSessionIds((current) => {
       const sessionKey = sessionsRef
         .current
@@ -106,27 +99,42 @@ export function useWorkspaceSessions(
     })
   }, [selectedId])
 
-  useEffect(() => writeCompletedSessionIds(completedSessionIds), [completedSessionIds])
-  useEffect(() => writePinnedSessions(pinnedSessions), [pinnedSessions])
+  // Keep the last workspace for features that outlive a selection, and tell the
+  // application when the context changes so workspace-scoped state can reset.
+  useEffect(() => {
+    if (workspacePath) {
+      window.localStorage.setItem(ACTIVE_WORKSPACE_KEY, workspacePath)
+      setActiveWorkspacePath((current) => current === workspacePath ? current : workspacePath)
+    }
+    if (notifiedWorkspacePathRef.current === workspacePath) return
+    if (notifiedWorkspacePathRef.current !== null) onWorkspaceSelected()
+    notifiedWorkspacePathRef.current = workspacePath
+  }, [onWorkspaceSelected, workspacePath])
 
-  /** Reloads sessions while discarding responses superseded by a newer workspace refresh. */
-  const refreshSessions = useCallback(async (cwd = workspacePath) => {
+  // A session selected from anywhere reveals its section. Only a selection change
+  // reopens it, so collapsing the current section survives later refreshes.
+  const selectedSessionCwd = selectedSession?.cwd
+  useEffect(() => {
+    if (!selectedId || !selectedSessionCwd) return
+    setCollapsedWorkspacePaths((current) =>
+      current.has(selectedSessionCwd) ? withoutPath(current, selectedSessionCwd) : current
+    )
+  }, [selectedId, selectedSessionCwd])
+
+  useEffect(() => writeCompletedSessionIds(completedSessionIds), [completedSessionIds])
+  useEffect(() => writeWorkspacePaths(workspacePaths), [workspacePaths])
+  useEffect(() => writeCollapsedWorkspaces(collapsedWorkspacePaths), [collapsedWorkspacePaths])
+
+  /** Reloads every workspace section while discarding responses superseded by a newer refresh. */
+  const refreshSessions = useCallback(async () => {
     const version = ++refreshVersionRef.current
-    const shouldAutoSelect = autoSelectOnRefreshRef.current
     setIsRefreshingSessions(true)
     try {
       const [nextSessions, nextRecentSessions] = await Promise.all([
         listSessions(),
-        listRecentSessions(cwd),
+        listRecentSessions(),
       ])
       if (version !== refreshVersionRef.current) return
-      const autoSelectId = shouldAutoSelect
-        ? pickSessionOnOpen(
-          sidebarSessions(nextRecentSessions, cwd, sentSessionsRef.current),
-          nextSessions,
-          completedSessionIdsRef.current,
-        )
-        : undefined
       const recentNames = new Map(
         nextRecentSessions.map((session) => [session.sessionPath, session.name]),
       )
@@ -161,50 +169,32 @@ export function useWorkspaceSessions(
           )
         )
       )
-      if (shouldAutoSelect) {
-        autoSelectOnRefreshRef.current = false
-        setSelectedId(autoSelectId ?? '')
-      } else {
-        setSelectedId((current) =>
-          nextSessions.some((session) => session.id === current) ? current : ''
-        )
-      }
+      setSelectedId((current) =>
+        nextSessions.some((session) => session.id === current) ? current : ''
+      )
       onSessionsRefreshed(nextSessions)
     } catch (cause) {
       if (version === refreshVersionRef.current) onError(cause)
     } finally {
       if (version === refreshVersionRef.current) setIsRefreshingSessions(false)
     }
-  }, [onError, onSessionsRefreshed, workspacePath])
+  }, [onError, onSessionsRefreshed])
 
   useEffect(() => void refreshSessions(), [refreshSessions])
 
-  /** Selects a workspace, optionally preserving an explicit session over automatic selection. */
-  const selectWorkspace = useCallback((path: string, targetSessionId?: string): void => {
-    window.localStorage.setItem('pi-livecraft.workspace-path', path)
-    const nextRecentWorkspacePaths = recentWorkspaces(path, recentWorkspacePaths)
-    window.localStorage.setItem(
-      'pi-livecraft.recent-workspace-paths',
-      JSON.stringify(nextRecentWorkspacePaths),
+  /** Registers a workspace so it keeps a section even when it has no sessions left. */
+  const addWorkspacePath = useCallback((path: string): void => {
+    if (!path) return
+    setWorkspacePaths((current) =>
+      current[0] === path ? current : [path, ...current.filter((candidate) => candidate !== path)]
     )
-    setRecentWorkspacePaths(nextRecentWorkspacePaths)
-    onWorkspaceSelected()
-    setWorkspacePath(path)
-    setSelectedId(targetSessionId ?? '')
-    setDirectoryPickerOpen(false)
-    autoSelectOnRefreshRef.current = targetSessionId === undefined
-    void refreshSessions(path)
-  }, [onWorkspaceSelected, recentWorkspacePaths, refreshSessions])
+  }, [])
 
-  const updatePinnedSessionName = useCallback((sessionPath: string, name: string): void => {
-    setPinnedSessions((current) => {
-      let changed = false
-      const next = current.map((session) => {
-        if (session.sessionPath !== sessionPath || session.name === name) return session
-        changed = true
-        return { ...session, name }
-      })
-      return changed ? next : current
+  const toggleWorkspaceCollapsed = useCallback((path: string): void => {
+    setCollapsedWorkspacePaths((current) => {
+      const next = new Set(current)
+      if (!next.delete(path)) next.add(path)
+      return next
     })
   }, [])
 
@@ -217,7 +207,6 @@ export function useWorkspaceSessions(
       )
       const sessionPath = session.sessionPath
       if (!sessionPath) return
-      updatePinnedSessionName(sessionPath, name)
       setSentSessions((current) => [
         {
           id: session.id,
@@ -231,7 +220,7 @@ export function useWorkspaceSessions(
         ),
       ])
     },
-    [updatePinnedSessionName],
+    [],
   )
 
   /** Launches and selects a session, then sends or prepares its optional first prompt.
@@ -246,13 +235,13 @@ export function useWorkspaceSessions(
       setSelectedId('')
       try {
         const session = await start()
-        await refreshSessions(options.refreshCwd)
+        await refreshSessions()
         setSelectedId(session.id)
         if (options.draftMessage) onDraftMessage(session.id, options.draftMessage)
         if (options.initialMessage) {
           await sendPiCommand(session.id, { type: 'prompt', message: options.initialMessage })
           nameSessionFromFirstPrompt(session, options.initialMessage)
-          await refreshSessions(options.refreshCwd)
+          await refreshSessions()
           onInitialMessageSent()
         }
         return session
@@ -267,6 +256,40 @@ export function useWorkspaceSessions(
     [nameSessionFromFirstPrompt, onDraftMessage, onError, onInitialMessageSent, refreshSessions],
   )
 
+  /** Creates a session inside a workspace, selects it, and keeps the folder in the sidebar. */
+  const createSessionInWorkspace = useCallback(
+    async (cwd: string, options: StartSessionOptions = {}): Promise<SessionSummary | null> => {
+      const session = await startAndSelectSession(() => createSession(cwd), options)
+      // Only a real session makes the folder worth keeping as an empty section.
+      if (session) addWorkspacePath(cwd)
+      return session
+    },
+    [addWorkspacePath, startAndSelectSession],
+  )
+
+  /** Selects the live session behind a row, or reopens its persisted history. */
+  const openSessionRow = useCallback(
+    async (row: RecentSession): Promise<void> => {
+      const active = sessionsRef.current.find((session) =>
+        session.sessionPath === row.sessionPath && session.status !== 'exited'
+      )
+      if (active) {
+        setSelectedId(active.id)
+        return
+      }
+      await startAndSelectSession(() => requestOpenSession(row.cwd, row.sessionPath))
+    },
+    [startAndSelectSession],
+  )
+
+  /** Opens the most recently active workspace other than the current one. */
+  const activatePreviousWorkspace = useCallback((): void => {
+    const target = groups.find((group) => group.path !== workspacePath && group.sessions.length > 0)
+    const row = target?.sessions[0]
+    if (!row) return
+    void openSessionRow(row).catch(onError)
+  }, [groups, onError, openSessionRow, workspacePath])
+
   const updateSession = useCallback(
     (
       sessionId: string,
@@ -279,17 +302,6 @@ export function useWorkspaceSessions(
     [],
   )
 
-  const togglePinnedSession = useCallback((target: SessionActionTarget): void => {
-    const sessionPath = target.sessionPath
-    if (!sessionPath) return
-    setPinnedSessions((current) => {
-      if (current.some((session) => session.sessionPath === sessionPath)) {
-        return current.filter((session) => session.sessionPath !== sessionPath)
-      }
-      return [...current, { cwd: target.cwd, name: target.name, sessionPath }]
-    })
-  }, [])
-
   /** Applies a manager-provided name consistently across live and recent session lists. */
   const renameSession = useCallback((sessionId: string, name: string): void => {
     const sessionPath = sessionsRef.current.find((session) => session.id === sessionId)?.sessionPath
@@ -297,7 +309,6 @@ export function useWorkspaceSessions(
       current.map((session) => session.id === sessionId ? { ...session, name } : session)
     )
     if (!sessionPath) return
-    updatePinnedSessionName(sessionPath, name)
     setRecentSessions((current) =>
       current.map((session) => session.sessionPath === sessionPath ? { ...session, name } : session)
     )
@@ -308,7 +319,7 @@ export function useWorkspaceSessions(
           : session
       )
     )
-  }, [updatePinnedSessionName])
+  }, [])
 
   /** Renames an active session through Pi, or a history-only session through a disposable RPC. */
   const renameManagedSession = useCallback(
@@ -320,30 +331,31 @@ export function useWorkspaceSessions(
         renameSession(target.sessionId, normalized)
       } else if (target.sessionPath) {
         await renameStoredSession(target.cwd, target.sessionPath, normalized)
-        updatePinnedSessionName(target.sessionPath, normalized)
       } else {
         throw new Error('Session path is unavailable')
       }
       await refreshSessions()
     },
-    [refreshSessions, renameSession, updatePinnedSessionName],
+    [refreshSessions, renameSession],
   )
 
-  /** Stops a managed process, keeps its persisted history, and selects a nearby active session. */
+  /** Stops a managed process, keeps its persisted history, and selects a nearby session. */
   const closeManagedSession = useCallback(async (sessionId: string): Promise<void> => {
+    const closedWorkspacePath = sessionsRef
+      .current
+      .find((session) => session.id === sessionId)
+      ?.cwd
     const nextId = selectedIdRef.current === sessionId
       ? nextActiveSessionId(
         sessionId,
+        groupsRef.current.find((group) => group.path === closedWorkspacePath),
         sessionsRef.current,
-        recentSessionsRef.current,
-        workspacePath,
-        sentSessionsRef.current,
       )
       : null
     await requestCloseSession(sessionId)
     if (selectedIdRef.current === sessionId) setSelectedId(nextId ?? '')
     await refreshSessions()
-  }, [refreshSessions, workspacePath])
+  }, [refreshSessions])
 
   /** Adds or replaces a pending UI request for a session. */
   const addPendingRequest = useCallback((sessionId: string, request: JsonObject): void => {
@@ -397,82 +409,67 @@ export function useWorkspaceSessions(
   }, [])
 
   return {
+    activatePreviousWorkspace,
     addPendingRequest,
     closeManagedSession,
+    collapsedWorkspacePaths,
     completedSessionIds,
+    createSessionInWorkspace,
     creatingSession,
-    directoryPickerOpen,
+    groups,
     isRefreshingSessions,
     markSessionCompleted,
     nameSessionFromFirstPrompt,
-    pinnedSessions,
-    recentSessions,
-    recentWorkspacePaths,
+    newSessionDialogOpen,
+    openSessionRow,
     refreshSessions,
     removePendingRequest,
     renameManagedSession,
     renameSession,
-    togglePinnedSession,
     selectCreatedSession,
     selectedId,
-    sentSessions,
     sessions,
-    setDirectoryPickerOpen,
+    setNewSessionDialogOpen,
     setSelectedId,
-    selectWorkspace,
-    startAndSelectSession,
+    toggleWorkspaceCollapsed,
     updateSession,
     workspacePath,
   }
 }
 
-/** Reads the persisted list of recent workspace paths from localStorage. */
-function readRecentWorkspaces(): string[] {
+/** Reads the explicitly added workspace folders persisted across restarts. */
+function readWorkspacePaths(): string[] {
   try {
-    const value: unknown = JSON.parse(
-      window.localStorage.getItem('pi-livecraft.recent-workspace-paths') ?? '[]',
-    )
+    const value: unknown = JSON.parse(window.localStorage.getItem(WORKSPACE_PATHS_KEY) ?? '[]')
     return Array.isArray(value)
-      ? value.filter((path): path is string => typeof path === 'string')
+      ? [
+        ...new Set(value.filter((path): path is string => typeof path === 'string' && path !== '')),
+      ]
       : []
   } catch {
     return []
   }
 }
 
-/** Restores pinned session metadata persisted across app restarts. */
-function readPinnedSessions(): PinnedSession[] {
+/** Persists the explicitly added workspace folders in their section order. */
+function writeWorkspacePaths(paths: readonly string[]): void {
   try {
-    const stored = window.localStorage.getItem(PINNED_SESSIONS_KEY)
-    if (!stored) return []
-    const parsed: unknown = JSON.parse(stored)
-    if (!Array.isArray(parsed)) return []
-    const sessions: PinnedSession[] = []
-    const seenPaths = new Set<string>()
-    for (const value of parsed) {
-      if (
-        !isObject(value)
-        || typeof value.cwd !== 'string'
-        || typeof value.name !== 'string'
-        || typeof value.sessionPath !== 'string'
-        || value.cwd.length === 0
-        || value.name.trim().length === 0
-        || value.sessionPath.length === 0
-        || seenPaths.has(value.sessionPath)
-      ) continue
-      seenPaths.add(value.sessionPath)
-      sessions.push({ cwd: value.cwd, name: value.name, sessionPath: value.sessionPath })
-    }
-    return sessions
+    if (paths.length === 0) window.localStorage.removeItem(WORKSPACE_PATHS_KEY)
+    else window.localStorage.setItem(WORKSPACE_PATHS_KEY, JSON.stringify(paths))
   } catch {
-    return []
+    // localStorage may be unavailable
   }
 }
 
-/** Persists pinned session metadata so pins survive page and app restarts. */
-function writePinnedSessions(sessions: readonly PinnedSession[]): void {
+/** Restores the collapsed workspace sections persisted across restarts. */
+function readCollapsedWorkspacePaths(): ReadonlySet<string> {
+  return readStringSet(COLLAPSED_WORKSPACES_KEY)
+}
+
+function writeCollapsedWorkspaces(paths: ReadonlySet<string>): void {
   try {
-    window.localStorage.setItem(PINNED_SESSIONS_KEY, JSON.stringify(sessions))
+    if (paths.size === 0) window.localStorage.removeItem(COLLAPSED_WORKSPACES_KEY)
+    else window.localStorage.setItem(COLLAPSED_WORKSPACES_KEY, JSON.stringify([...paths]))
   } catch {
     // localStorage may be unavailable
   }
@@ -481,7 +478,7 @@ function writePinnedSessions(sessions: readonly PinnedSession[]): void {
 /** Restores completed-session identifiers persisted across same-tab refreshes. */
 function readCompletedSessionIds(): ReadonlySet<string> {
   try {
-    const stored = sessionStorage.getItem(COMPLETED_SESSIONS_KEY)
+    const stored = window.sessionStorage.getItem(COMPLETED_SESSIONS_KEY)
     if (!stored) return new Set()
     const parsed: unknown = JSON.parse(stored)
     if (!Array.isArray(parsed)) return new Set()
@@ -492,17 +489,35 @@ function readCompletedSessionIds(): ReadonlySet<string> {
   }
 }
 
+function readStringSet(key: string): ReadonlySet<string> {
+  try {
+    const stored = window.localStorage.getItem(key)
+    if (!stored) return new Set()
+    const parsed: unknown = JSON.parse(stored)
+    if (!Array.isArray(parsed)) return new Set()
+    return new Set(parsed.filter((value): value is string => typeof value === 'string' && !!value))
+  } catch {
+    return new Set()
+  }
+}
+
 /** Persists completed-session identifiers so they survive a page refresh within the same tab. */
 function writeCompletedSessionIds(ids: ReadonlySet<string>): void {
   try {
-    if (ids.size === 0) sessionStorage.removeItem(COMPLETED_SESSIONS_KEY)
-    else sessionStorage.setItem(
+    if (ids.size === 0) window.sessionStorage.removeItem(COMPLETED_SESSIONS_KEY)
+    else window.sessionStorage.setItem(
         COMPLETED_SESSIONS_KEY,
         JSON.stringify([...keepRecentCompletedSessionIds(ids)]),
       )
   } catch {
     // sessionStorage may be unavailable
   }
+}
+
+function withoutPath(paths: ReadonlySet<string>, path: string): ReadonlySet<string> {
+  const next = new Set(paths)
+  next.delete(path)
+  return next
 }
 
 function keepRecentCompletedSessionIds(ids: Iterable<string>): ReadonlySet<string> {

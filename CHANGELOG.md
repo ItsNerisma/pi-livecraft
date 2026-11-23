@@ -5,7 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - 2026-08-12
+## [Unreleased]
+
+### Added
+
+- Group sessions into collapsible sections named after their workspace folder, replacing the single main workspace.
+- Create a session in any folder from one `New session` dialog that opens the host's native folder dialog, with recent workspaces and typed paths as fallbacks.
+- Add a session to an existing workspace from the `＋` button on its section.
+
+### Changed
+
+- The active workspace now follows the selected session instead of being chosen separately; Git, todos, quotas, terminal, prompt templates, and the right sidebar follow it.
+- Startup no longer selects a session automatically: the previous selection is restored when its Pi process is still alive.
+
+### Removed
+
+- Session pinning, the `Other workspaces` section, the `Open directory picker` command and its `alt+d` shortcut. Stored pins and the old workspace keys are ignored.
+
+
 
 ### Added
 

@@ -25,15 +25,17 @@ interface PiSessionHeader {
   cwd: string
 }
 
-const MAX_SESSIONS = 30
+const MAX_SESSIONS_PER_WORKSPACE = 30
 const CANDIDATE_BUFFER = 100
 const HEAD_CHUNK_BYTES = 64 * 1024
 const TAIL_CHUNK_BYTES = 64 * 1024
 const TAIL_SCAN_BUDGET = 2 * 1024 * 1024
 
-/** Reads only the metadata required to resume a Pi session. */
+/**
+ * Lists resumable Pi sessions across every workspace, capped per working directory.
+ * The sidebar groups the result by each session's canonical `cwd`.
+ */
 export async function listRecentPiSessions(
-  cwd: string,
   directory = sessionDirectory,
 ): Promise<RecentSession[]> {
   const paths = await listSessionFiles(directory)
@@ -50,10 +52,20 @@ export async function listRecentPiSessions(
     candidates.map(({ path, mtime }) => readPiSession(path, mtime)),
   )
 
-  return sessions
-    .filter((session): session is RecentSession => session?.cwd === cwd)
-    .sort((left, right) => right.updatedAt - left.updatedAt)
-    .slice(0, MAX_SESSIONS)
+  const perWorkspace = new Map<string, number>()
+  const recent: RecentSession[] = []
+  for (const session of sessions.sort(byUpdatedAt)) {
+    if (!session) continue
+    const count = perWorkspace.get(session.cwd) ?? 0
+    if (count >= MAX_SESSIONS_PER_WORKSPACE) continue
+    perWorkspace.set(session.cwd, count + 1)
+    recent.push(session)
+  }
+  return recent
+}
+
+function byUpdatedAt(left: RecentSession | null, right: RecentSession | null): number {
+  return (right?.updatedAt ?? 0) - (left?.updatedAt ?? 0)
 }
 
 /** Verifies that a file belongs to the Pi session directory before loading its metadata. */

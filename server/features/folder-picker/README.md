@@ -1,0 +1,13 @@
+# Folder picker backend capability
+
+`folder-picker.ts` opens the host's native directory dialog so the browser can let the user pick a workspace folder. The dialog always opens on the machine running the backend, never on a remote client.
+
+Each platform contributes its own candidates, tried in order until one starts:
+
+- Linux and WSL prefer `zenity --file-selection --directory`, then `kdialog --getexistingdirectory`, then `yad`.
+- Native Windows runs a constant PowerShell script that shows `System.Windows.Forms.FolderBrowserDialog`; the starting directory reaches it through `PI_LIVECRAFT_PICK_INITIAL`, never through the script text.
+- macOS runs `osascript` with `choose folder`. macOS is handled here instead of extending `getDesktopPlatform`, because `openPath` does not support it yet.
+
+Return contract: exit code 0 with output resolves the selected path, exit code 1 resolves as a cancellation (`null`) — including osascript's error `-128` — and any other exit code throws with the dialog's stderr. A missing executable (`ENOENT`) moves to the next candidate; when none starts, `FolderPickerUnavailableError` lets the backend answer `{ path: null, unavailable: true }` so the interface falls back to typed input.
+
+HTTP routing, the single-dialog guard, working-directory resolution, and canonicalization of the selected path remain in `server/backend.ts`. Main coverage: `test/folder-picker.test.ts`.

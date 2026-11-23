@@ -13,7 +13,6 @@ type CoreCommandId =
   | 'open-palette'
   | 'open-settings'
   | 'open-terminal'
-  | 'open-directory-picker'
   | 'workspace-previous'
   | 'focus-composer'
   | 'next-session'
@@ -40,8 +39,7 @@ export const commandDefinitions: CommandDefinition[] = [
   { id: 'open-palette', label: 'Open command palette' },
   { id: 'open-settings', label: 'Open settings' },
   { id: 'open-terminal', label: 'Open terminal' },
-  { id: 'open-directory-picker', label: 'Open directory picker' },
-  { id: 'workspace-previous', label: 'Switch to previous workspace' },
+  { id: 'workspace-previous', label: 'Open previous workspace' },
   { id: 'focus-composer', label: 'Focus composer' },
   { id: 'next-session', label: 'Next session' },
   { id: 'previous-session', label: 'Previous session' },
@@ -63,7 +61,6 @@ export const defaultShortcuts: Partial<Record<CommandId, string>> = {
   'open-palette': 'alt+k',
   'open-settings': 'alt+s',
   'open-terminal': 'alt+t',
-  'open-directory-picker': 'alt+d',
   'workspace-previous': 'alt+&',
   'focus-composer': 'alt+2',
   'next-session': 'alt+arrowright',

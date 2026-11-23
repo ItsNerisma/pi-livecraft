@@ -7,6 +7,11 @@ import { ManagerClient } from './manager-client.ts'
 import { ManagerRuntimeMonitor } from './manager-runtime-monitor.ts'
 import { listRecentPiSessions, loadPiSession } from './pi-session-store.ts'
 import {
+  FolderPickerUnavailableError,
+  getFolderPickerPlatform,
+  pickDirectory,
+} from './features/folder-picker/folder-picker.ts'
+import {
   commitChanges,
   discardChanges,
   discardFileChanges,
@@ -47,6 +52,8 @@ const manager = new ManagerClient(host, managerPort)
 const eventClients = new Set<ServerResponse>()
 const liveSessionEvents = new Map<string, LiveSessionEvents>()
 let piEventSequence = 0
+/** Prevents stacking native folder dialogs on the host. */
+let folderPickerActive = false
 const distDirectory = fileURLToPath(new URL('../dist/', import.meta.url))
 const quotas = new QuotaService(manager)
 const managerRuntime = new ManagerRuntimeMonitor(manager, (status) => {
@@ -166,13 +173,34 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
   }
 
   if (method === 'GET' && url.pathname === '/api/sessions/recent') {
-    const cwd = await resolveWorkingDirectory(url.searchParams.get('cwd') ?? '~/.pi')
-    sendJson(response, 200, await listRecentPiSessions(cwd))
+    sendJson(response, 200, await listRecentPiSessions())
     return
   }
 
   if (method === 'GET' && url.pathname === '/api/directories') {
     sendJson(response, 200, await listDirectories(url.searchParams.get('path') ?? '~/.pi'))
+    return
+  }
+
+  if (method === 'POST' && url.pathname === '/api/directories/pick') {
+    const body = await readJsonBody(request)
+    if (folderPickerActive) throw new HttpError(409, 'A folder picker is already open')
+    folderPickerActive = true
+    try {
+      const initialPath = typeof body.cwd === 'string' && body.cwd.trim()
+        ? await resolveWorkingDirectory(body.cwd).catch(() => undefined)
+        : undefined
+      const selected = await pickDirectory(getFolderPickerPlatform(), initialPath)
+      sendJson(response, 200, { path: selected ? await resolveWorkingDirectory(selected) : null })
+    } catch (error) {
+      if (error instanceof FolderPickerUnavailableError) {
+        sendJson(response, 200, { path: null, unavailable: true })
+        return
+      }
+      throw error
+    } finally {
+      folderPickerActive = false
+    }
     return
   }
 

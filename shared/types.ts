@@ -29,6 +29,14 @@ export interface DirectoryListing {
   directories: DirectoryEntry[]
 }
 
+/** Result of asking the host for a folder through its native dialog. */
+export interface DirectoryPickResult {
+  /** Canonical directory chosen by the user, or null when they cancelled. */
+  path: string | null
+  /** Set when the host offers no native dialog, so the interface falls back to typed input. */
+  unavailable?: boolean
+}
+
 export interface GitFileChange {
   path: string
   status: 'added' | 'deleted' | 'modified' | 'renamed'

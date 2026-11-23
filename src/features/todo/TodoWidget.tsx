@@ -32,7 +32,7 @@ export function TodoWidget(
     activeSessionId: string
     compactingSessionIds: ReadonlySet<string>
     completedSessionIds: ReadonlySet<string>
-    onNavigateSession: (link: { id: string; sessionPath: string }) => void
+    onNavigateSession: (link: TodoSessionLink) => void
     onOpenCountChange: (count: number | null) => void
     onSendPrompt: (message: string) => Promise<SessionSummary | null>
     onStartSession: (message: string) => Promise<SessionSummary | null>
@@ -71,6 +71,11 @@ export function TodoWidget(
     setTodos([])
     sessionNameSyncKey.current = ''
     todosWorkspace.current = null
+    // Without a workspace the panel has nothing to read; stay quiet instead of reporting an error.
+    if (!workspacePath) {
+      setLoading(false)
+      return
+    }
     void loadTodos(workspacePath, reloadRequest > 0)
       .then((nextTodos) => {
         if (cancelled) return

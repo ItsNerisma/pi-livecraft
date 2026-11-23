@@ -2,14 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import './App.css'
 import {
   commitChanges,
-  createSession,
   discardChanges,
   getGitFileDiff,
   getGitSnapshot,
   getQuotas,
   improvePrompt,
   openExplorer,
-  openSession,
   openTerminal,
   pushCommits,
   refreshQuotas,
@@ -51,8 +49,7 @@ import {
 } from './features/right-sidebar/right-sidebar.ts'
 import { RightSidebar } from './features/right-sidebar/RightSidebar.tsx'
 import { quotaProviderForModel } from './features/quotas/quota-display.ts'
-import { DirectoryPicker } from './features/workspace/DirectoryPicker.tsx'
-import { sidebarSessions, type PinnedSession } from './features/workspace/sidebar-sessions.ts'
+import { NewSessionDialog } from './features/workspace/NewSessionDialog.tsx'
 import { useWorkspaceSessions } from './features/workspace/useWorkspaceSessions.ts'
 import { WorkspaceSidebar } from './features/workspace/WorkspaceSidebar.tsx'
 import {
@@ -316,30 +313,29 @@ function App() {
     [showToast],
   )
   const {
+    activatePreviousWorkspace,
     addPendingRequest,
     closeManagedSession,
+    collapsedWorkspacePaths,
     completedSessionIds,
+    createSessionInWorkspace,
     creatingSession,
-    directoryPickerOpen,
+    groups,
     isRefreshingSessions,
     markSessionCompleted,
     nameSessionFromFirstPrompt,
-    pinnedSessions,
-    recentSessions,
-    recentWorkspacePaths,
+    newSessionDialogOpen,
+    openSessionRow,
     refreshSessions,
     removePendingRequest,
     renameManagedSession,
     renameSession,
     selectCreatedSession,
     selectedId,
-    sentSessions,
     sessions,
-    setDirectoryPickerOpen,
+    setNewSessionDialogOpen,
     setSelectedId,
-    selectWorkspace,
-    startAndSelectSession: startWorkspaceSession,
-    togglePinnedSession,
+    toggleWorkspaceCollapsed,
     updateSession,
     workspacePath,
   } = useWorkspaceSessions({
@@ -374,27 +370,6 @@ function App() {
       window.removeEventListener('focus', clearHiddenCompletion)
     }
   }, [])
-
-  const startAndSelectSession = useCallback(
-    (
-      start: () => Promise<SessionSummary>,
-      initialMessage?: string,
-      draftMessage?: string,
-    ): Promise<SessionSummary | null> =>
-      startWorkspaceSession(start, { draftMessage, initialMessage }),
-    [startWorkspaceSession],
-  )
-
-  const openPinnedSession = useCallback(
-    async (session: PinnedSession): Promise<void> => {
-      selectWorkspace(session.cwd)
-      await startWorkspaceSession(
-        () => openSession(session.cwd, session.sessionPath),
-        { refreshCwd: session.cwd },
-      )
-    },
-    [selectWorkspace, startWorkspaceSession],
-  )
 
   const {
     activity,
@@ -765,6 +740,24 @@ function App() {
   const selectedSession = sessions.find((session) => session.id === selectedId)
   const selectedSessionId = selectedSession?.id
   const selectedSessionStatus = selectedSession?.status
+  const activeWorkspaceRows = useMemo(
+    () =>
+      groups.find((group) => group.path === workspacePath)?.sessions
+        ?? groups[0]?.sessions
+        ?? [],
+    [groups, workspacePath],
+  )
+  const selectedRowIndex = activeWorkspaceRows.findIndex((row) =>
+    row.id === selectedId || row.sessionPath === selectedSession?.sessionPath
+  )
+
+  /** Moves the selection inside the active workspace section. */
+  const selectSiblingSession = useCallback((offset: number): void => {
+    const index = selectedRowIndex === -1 && offset > 0 ? -1 : selectedRowIndex
+    const target = activeWorkspaceRows[index + offset]
+    if (!target) return
+    void openSessionRow(target).catch((cause) => showToast('error', messageOf(cause)))
+  }, [activeWorkspaceRows, openSessionRow, selectedRowIndex, showToast])
   const sessionIsLoading = Boolean(selectedSessionId && snapshotSessionId !== selectedSessionId)
 
   // Manages loading overlay fade-in / fade-out around snapshot refresh.
@@ -895,10 +888,7 @@ function App() {
   const questionnaireInComposer = questionnaire?.sessionId === selectedId
     && snapshotSessionId === selectedId
   const openQuestionnaireSession = questionnaireSession && questionnaireSession.id !== selectedId
-    ? () =>
-      questionnaireSession.cwd === workspacePath
-        ? setSelectedId(questionnaireSession.id)
-        : selectWorkspace(questionnaireSession.cwd, questionnaireSession.id)
+    ? () => setSelectedId(questionnaireSession.id)
     : undefined
 
   const markComposerDraftApplied = useCallback((id: string) => {
@@ -932,9 +922,7 @@ function App() {
       return
     }
     if (id === 'new-session') {
-      void startAndSelectSession(() => createSession(workspacePath)).catch((cause) =>
-        showToast('error', messageOf(cause))
-      )
+      setNewSessionDialogOpen(true)
       return
     }
     if (id === 'send') {
@@ -964,12 +952,8 @@ function App() {
         .catch((cause) => showToast('error', messageOf(cause)))
       return
     }
-    if (id === 'open-directory-picker') {
-      setDirectoryPickerOpen(true)
-      return
-    }
-    if (id === 'workspace-previous' && recentWorkspacePaths.length > 1) {
-      selectWorkspace(recentWorkspacePaths[1])
+    if (id === 'workspace-previous') {
+      activatePreviousWorkspace()
       return
     }
     if (id === 'focus-composer') {
@@ -977,10 +961,7 @@ function App() {
       return
     }
     if (id === 'next-session' || id === 'previous-session') {
-      const visible = sidebarSessions(recentSessions, workspacePath, sentSessions)
-      const currentIndex = visible.findIndex((session) => session.id === selectedId)
-      const targetIndex = id === 'next-session' ? currentIndex + 1 : currentIndex - 1
-      if (targetIndex >= 0 && targetIndex < visible.length) setSelectedId(visible[targetIndex].id)
+      selectSiblingSession(id === 'next-session' ? 1 : -1)
       return
     }
     if (id === 'toggle-conversation-view') {
@@ -996,28 +977,22 @@ function App() {
       return
     }
   }, [
+    activatePreviousWorkspace,
     gitSnapshot?.repository,
     openRightWidget,
-    recentSessions,
-    recentWorkspacePaths,
-    selectWorkspace,
+    selectSiblingSession,
     selectedId,
-    sentSessions,
     analysisAvailable,
-    setDirectoryPickerOpen,
-    setSelectedId,
+    setNewSessionDialogOpen,
     showToast,
     snapshot.messages,
-    startAndSelectSession,
     terminalCommand,
     workspacePath,
   ])
 
   const paletteCommands: PaletteCommand[] = useMemo(() => {
-    const visibleIds = sidebarSessions(recentSessions, workspacePath, sentSessions).map((session) =>
-      session.id
-    )
-    const selectedIndex = selectedId ? visibleIds.indexOf(selectedId) : -1
+    const selectedIndex = selectedRowIndex
+    const rowCount = activeWorkspaceRows.length
     return commandDefinitions.map((definition) => {
       const rightWidget = rightWidgetFromCommand(definition.id)
       const unavailableWidget = (rightWidget === 'analysis' && !analysisAvailable)
@@ -1036,21 +1011,20 @@ function App() {
             ] as CommandId[])
               .includes(definition.id) && !selectedSession
           || (definition.id === 'abort' && selectedSession?.status !== 'running')
-          || (definition.id === 'workspace-previous' && recentWorkspacePaths.length < 2)
-          || (definition.id === 'next-session'
-            && (selectedIndex === -1 || selectedIndex >= visibleIds.length - 1))
+          || (definition.id === 'workspace-previous'
+            && !groups.some((group) => group.path !== workspacePath && group.sessions.length > 0))
+          || (definition.id === 'next-session' && selectedIndex >= rowCount - 1)
           || (definition.id === 'previous-session' && selectedIndex <= 0),
         onExecute: () => executeCommand(definition.id),
       }
     })
   }, [
+    activeWorkspaceRows.length,
     executeCommand,
     gitSnapshot?.repository,
-    recentSessions,
-    recentWorkspacePaths,
-    selectedId,
+    groups,
+    selectedRowIndex,
     selectedSession,
-    sentSessions,
     analysisAvailable,
     shortcuts,
     workspacePath,
@@ -1151,31 +1125,22 @@ function App() {
     >
       <WorkspaceSidebar
         collapsed={workspaceSidebarCollapsed}
+        collapsedWorkspacePaths={collapsedWorkspacePaths}
         compactingSessionIds={compactingSessionIds}
         completedSessionIds={completedSessionIds}
+        groups={groups}
         isRefreshing={isRefreshingSessions}
-        pinnedSessions={pinnedSessions}
-        recentSessions={recentSessions}
-        sentSessions={sentSessions}
         sessions={sessions}
         selectedId={selectedId}
         width={workspaceSidebarWidth}
-        workspacePath={workspacePath}
-        onChooseWorkspace={() => setDirectoryPickerOpen(true)}
         onCloseSession={closeManagedSession}
-        onCreate={async () => {
-          await startAndSelectSession(() => createSession(workspacePath))
-        }}
-        onOpenSession={async (recentSession) => {
-          await startAndSelectSession(() => openSession(workspacePath, recentSession.sessionPath))
-        }}
-        onOpenOtherWorkspaceSession={openPinnedSession}
-        onSelectOtherWorkspaceSession={(session) => selectWorkspace(session.cwd, session.id)}
-        onSelectSession={setSelectedId}
+        onCreateInWorkspace={(path) => createSessionInWorkspace(path).then(() => undefined)}
+        onNewSession={() => setNewSessionDialogOpen(true)}
+        onOpenSession={openSessionRow}
         onError={(cause) => showToast('error', messageOf(cause))}
         onOpenSettings={() => setSettingsOpen(true)}
         onRenameSession={renameManagedSession}
-        onTogglePinnedSession={togglePinnedSession}
+        onToggleWorkspaceCollapsed={toggleWorkspaceCollapsed}
         onResize={updateWorkspaceSidebarWidth}
         onToggleCollapsed={toggleWorkspaceSidebar}
       />
@@ -1354,7 +1319,14 @@ function App() {
               <section className='welcome'>
                 <span className='brand-mark large'>π</span>
                 <h1>Control Pi from your browser</h1>
-                <p>Create a local session to access your models, agents, tools, and commands.</p>
+                <p>Open a workspace folder to reach your models, agents, tools, and commands.</p>
+                <button
+                  className='welcome-action'
+                  onClick={() => setNewSessionDialogOpen(true)}
+                  type='button'
+                >
+                  ＋ New session
+                </button>
               </section>
               <ToastStack onDismiss={dismissToast} standalone toasts={visibleToasts} />
             </>
@@ -1398,13 +1370,24 @@ function App() {
           if (active) {
             setSelectedId(link.id)
           } else {
-            void startAndSelectSession(() => openSession(workspacePath, link.sessionPath))
+            void openSessionRow({
+              cwd: workspacePath,
+              id: link.id,
+              name: link.name,
+              sessionPath: link.sessionPath,
+              updatedAt: Date.now(),
+            })
+              .catch((cause) => showToast('error', messageOf(cause)))
           }
         }}
-        onTodoSendPrompt={async (message) =>
-          startAndSelectSession(() => createSession(workspacePath), message)}
-        onTodoStartSession={async (message) =>
-          startAndSelectSession(() => createSession(workspacePath), undefined, message)}
+        onTodoSendPrompt={async (message) => {
+          await createSessionInWorkspace(workspacePath, { initialMessage: message })
+          return null
+        }}
+        onTodoStartSession={async (message) => {
+          await createSessionInWorkspace(workspacePath, { draftMessage: message })
+          return null
+        }}
         onWidgetSelect={(widget) =>
           setActiveRightWidget((current) => {
             const next = current === widget ? null : widget
@@ -1413,13 +1396,15 @@ function App() {
           })}
       />
 
-      {directoryPickerOpen && (
-        <DirectoryPicker
-          initialPath={workspacePath}
-          recentPaths={recentWorkspacePaths}
-          onClose={() => setDirectoryPickerOpen(false)}
+      {newSessionDialogOpen && (
+        <NewSessionDialog
+          recentPaths={groups.map((group) => group.path)}
+          onClose={() => setNewSessionDialogOpen(false)}
           onError={(cause) => showToast('error', messageOf(cause))}
-          onSelect={selectWorkspace}
+          onCreate={async (path) => {
+            setNewSessionDialogOpen(false)
+            await createSessionInWorkspace(path)
+          }}
         />
       )}
       {questionnaire && !questionnaireInComposer && (

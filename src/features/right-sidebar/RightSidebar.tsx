@@ -14,6 +14,7 @@ import type {
   GitSnapshot,
   QuotaSnapshot,
   SessionSummary,
+  TodoSessionLink,
 } from '../../../shared/types.ts'
 import { GitWidget } from '../git/GitWidget.tsx'
 import { QuotaWidget } from '../quotas/QuotaWidget.tsx'
@@ -88,7 +89,7 @@ export function RightSidebar({
   onRefresh: () => Promise<void>
   onReset: (hash: string) => Promise<GitResetResult>
   onRevert: (hash: string) => Promise<GitRevertResult>
-  onTodoNavigateSession: (link: { id: string; sessionPath: string }) => void
+  onTodoNavigateSession: (link: TodoSessionLink) => void
   onTodoSendPrompt: (message: string) => Promise<SessionSummary | null>
   onTodoStartSession: (message: string) => Promise<SessionSummary | null>
   onWidgetSelect: (widget: RightWidget) => void

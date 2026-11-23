@@ -43,7 +43,6 @@ test('détecte les conflits de raccourcis', () => {
 
 test('les nouvelles commandes de productivité sont reconnues par le registre', () => {
   const ids = [
-    'open-directory-picker',
     'workspace-previous',
     'focus-composer',
     'next-session',
@@ -59,7 +58,6 @@ test('les nouvelles commandes de productivité sont reconnues par le registre', 
 })
 
 test('les nouveaux raccourcis par défaut sont définis', () => {
-  assert.equal(defaultShortcuts['open-directory-picker'], 'alt+d')
   assert.equal(defaultShortcuts['workspace-previous'], 'alt+&')
   assert.equal(defaultShortcuts['focus-composer'], 'alt+2')
   assert.equal(defaultShortcuts['next-session'], 'alt+arrowright')

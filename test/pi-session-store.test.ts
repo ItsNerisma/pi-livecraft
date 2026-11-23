@@ -53,7 +53,7 @@ test('sorts canonical Pi sessions by their last message timestamp', async () => 
     'Newer session',
     'Renamed session',
   )
-  const recent = await listRecentPiSessions(workspace, directory)
+  const recent = await listRecentPiSessions(directory)
   assert.deepEqual(recent.map(({ id, name, cwd }) => ({ id, name, cwd })), [
     { id: 'older', name: 'Older session', cwd: workspace },
     { id: 'newer', name: 'Renamed session', cwd: workspace },
@@ -64,8 +64,9 @@ test('sorts canonical Pi sessions by their last message timestamp', async () => 
   ])
 })
 
-test('returns every session in the canonical working directory and omits stale cwd records', async () => {
+test('returns sessions from every workspace and omits stale cwd records', async () => {
   const { directory, workspace } = await fixture()
+  const otherWorkspace = await mkdtemp(join(tmpdir(), 'pi-workspace-'))
   await Promise.all(
     Array.from({ length: 11 }, (_, index) =>
       writeSession(
@@ -75,8 +76,14 @@ test('returns every session in the canonical working directory and omits stale c
         `Session ${index}`,
       )),
   )
+  await writeSession(join(directory, 'other.jsonl'), otherWorkspace, 'other', 'Other session')
   await writeSession(join(directory, 'stale.jsonl'), join(directory, 'missing'), 'stale', 'Stale')
-  assert.equal((await listRecentPiSessions(workspace, directory)).length, 11)
+  const recent = await listRecentPiSessions(directory)
+  assert.equal(recent.length, 12)
+  assert.deepEqual(
+    new Set(recent.map(({ cwd }) => cwd)),
+    new Set([workspace, otherWorkspace]),
+  )
 })
 
 test('uses the first non-command user prompt and hides sessions without messages', async () => {
@@ -113,7 +120,7 @@ test('uses the first non-command user prompt and hides sessions without messages
     ]
       .join('\n'),
   )
-  const recent = await listRecentPiSessions(workspace, directory)
+  const recent = await listRecentPiSessions(directory)
   assert.equal(recent.length, 1)
   assert.equal(recent[0].name, 'One two three four five six seven eight…')
 })
@@ -154,7 +161,7 @@ test('reads the newest entry of a large session file even when it exceeds one ta
     ]
       .join('\n') + '\n',
   )
-  const recent = await listRecentPiSessions(workspace, directory)
+  const recent = await listRecentPiSessions(directory)
   assert.equal(recent.length, 1)
   assert.equal(recent[0].name, 'Big session')
   // updatedAt reflects the final entry's timestamp; if it were ignored, this would fall back to 09:00.

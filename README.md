@@ -89,7 +89,7 @@ Open [http://127.0.0.1:5173](http://127.0.0.1:5173) and you should see Livecraft
 
 ### Work with Pi
 
-- **Workspaces and parallel sessions:** create, switch, reopen, and monitor Pi sessions across several workspaces. Running and newly completed sessions remain visible in the list wherever you are
+- **Workspace sections and parallel sessions:** start a session in any folder the host can browse, then find it again under a collapsible section named after that folder. Create, switch, reopen, and monitor Pi sessions across workspaces; running and newly completed sessions stay visible with their status
 
 - **A Pi-native composer:** send text and images, use slash commands, stop a request, choose the models, thinking levels, and saved prompts exposed by Pi, and steer or queue follow-ups while Pi is working
 
