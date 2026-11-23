@@ -591,11 +591,44 @@
   max-height: min(680px, calc(100dvh - 40px));
   padding: 20px;
 }
-.new-session-modal h2 {
-  margin-bottom: 4px;
-}
-.new-session-modal > p:not(.new-session-error) {
+.new-session-heading {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
   margin-bottom: 16px;
+}
+.new-session-heading-icon {
+  display: grid;
+  flex: 0 0 36px;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.new-session-heading-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.new-session-heading-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+.new-session-heading h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+.new-session-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 .new-session-folder + .recent-workspaces {
   margin-top: 14px;
@@ -757,13 +790,6 @@
   opacity: 0.5;
   box-shadow: none;
   transform: none;
-}
-.directory-path-label {
-  display: block;
-  margin: 0 0 7px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
 }
 .directory-path-input {
   width: 100%;

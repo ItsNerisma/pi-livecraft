@@ -180,12 +180,16 @@ export function NewSessionDialog(
         ref={dialogRef}
         role='dialog'
       >
-        <h2 id='new-session-title'>New workspace</h2>
-        <p>A new Pi session starts in the folder you pick.</p>
+        <header className='new-session-heading'>
+          <div className='new-session-heading-icon'>
+            <FolderIcon />
+          </div>
+          <div className='new-session-heading-copy'>
+            <h2 id='new-session-title'>New session</h2>
+            <p>A new Pi session starts in the folder you pick.</p>
+          </div>
+        </header>
         <div className='new-session-folder'>
-          <label className='directory-path-label' htmlFor='new-session-path'>
-            Workspace folder
-          </label>
           <button
             className='new-session-browse'
             disabled={busy}
@@ -205,6 +209,7 @@ export function NewSessionDialog(
             aria-expanded={suggestions.length > 0}
             aria-invalid={Boolean(error)}
             autoComplete='off'
+            aria-label='Workspace folder path'
             className='directory-path-input'
             disabled={busy}
             id='new-session-path'
@@ -274,7 +279,7 @@ export function NewSessionDialog(
         <div className='modal-actions'>
           <button disabled={busy} onClick={onClose} type='button'>Cancel</button>
           <button className='primary' disabled={busy || !path.trim()} type='submit'>
-            {creating ? 'Starting…' : 'New workspace'}
+            {creating ? 'Starting…' : 'New session'}
           </button>
         </div>
       </form>
