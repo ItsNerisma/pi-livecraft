@@ -182,25 +182,6 @@ export function NewSessionDialog(
       >
         <h2 id='new-session-title'>New workspace</h2>
         <p>A new Pi session starts in the folder you pick.</p>
-        {visibleRecentPaths.length > 0 && (
-          <section aria-labelledby='new-session-recent-title' className='recent-workspaces'>
-            <strong id='new-session-recent-title'>Recent workspaces</strong>
-            <div>
-              {visibleRecentPaths
-                .map((recentPath) => (
-                  <button
-                    aria-pressed={path !== '' && recentPath === path}
-                    key={recentPath}
-                    onClick={() => updatePath(recentPath)}
-                    type='button'
-                  >
-                    <strong>{workspaceName(recentPath, visibleRecentPaths)}</strong>
-                    <span>{recentPath}</span>
-                  </button>
-                ))}
-            </div>
-          </section>
-        )}
         <div className='new-session-folder'>
           <label className='directory-path-label' htmlFor='new-session-path'>
             Workspace folder
@@ -269,6 +250,25 @@ export function NewSessionDialog(
             Tab completes · ↑↓ navigate · Esc cancels
           </p>
         </div>
+        {visibleRecentPaths.length > 0 && (
+          <section aria-labelledby='new-session-recent-title' className='recent-workspaces'>
+            <strong id='new-session-recent-title'>Recent workspaces</strong>
+            <div>
+              {visibleRecentPaths
+                .map((recentPath) => (
+                  <button
+                    aria-pressed={path !== '' && recentPath === path}
+                    key={recentPath}
+                    onClick={() => updatePath(recentPath)}
+                    type='button'
+                  >
+                    <strong>{workspaceName(recentPath, visibleRecentPaths)}</strong>
+                    <span>{recentPath}</span>
+                  </button>
+                ))}
+            </div>
+          </section>
+        )}
         {error && <p className='new-session-error' id='new-session-error' role='alert'>{error}</p>}
         <div className='modal-actions'>
           <button disabled={busy} onClick={onClose} type='button'>Cancel</button>

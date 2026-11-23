@@ -587,12 +587,14 @@
 .new-session-modal {
   display: flex;
   flex-direction: column;
+  width: min(520px, 100%);
+  max-height: min(680px, calc(100dvh - 40px));
+  padding: 20px;
 }
-/* Choosing a folder confirms the pick above; the divider keeps typing secondary. */
-.recent-workspaces + .new-session-folder {
-  margin-top: 14px;
+.new-session-folder + .recent-workspaces {
+  margin-top: 12px;
   border-top: 1px solid var(--line);
-  padding-top: 14px;
+  padding-top: 12px;
 }
 .directory-path-row {
   display: flex;
@@ -671,8 +673,8 @@
 }
 .recent-workspaces > div {
   display: grid;
-  gap: 3px;
-  max-height: 150px;
+  gap: 2px;
+  max-height: 104px;
   overflow: auto;
 }
 /* Folder name carries the recognition; the full path stays available but quiet. */
@@ -682,8 +684,8 @@
   gap: 9px;
   overflow: hidden;
   border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 7px 9px;
+  border-radius: 7px;
+  padding: 5px 8px;
   background: var(--surface-raised);
   text-align: left;
   transition:
