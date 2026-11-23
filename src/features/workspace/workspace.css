@@ -259,7 +259,6 @@
 }
 .workspace-section-count {
   flex: 0 0 auto;
-  margin-left: auto;
   border-radius: 999px;
   padding: 1px 7px;
   background: color-mix(in srgb, var(--ink) 8%, transparent);
