@@ -31,12 +31,13 @@ export function workspaceGroups(
     .map((path) => {
       const sessions = rows
         .filter((row) => row.cwd === path)
-        .sort((left, right) => right.updatedAt - left.updatedAt)
+        .sort(newestActivityFirst)
       return {
         path,
         name: workspaceName(path, paths),
         sessions,
-        latestActivity: sessions[0]?.updatedAt ?? 0,
+        // Unknown activity from an unpersisted live session must not reorder the sections.
+        latestActivity: sessions.reduce((latest, row) => Math.max(latest, row.updatedAt), 0),
       }
     })
     .sort((left, right) => right.latestActivity - left.latestActivity)
@@ -72,13 +73,26 @@ export function sidebarSessionRows(
       name: session.name,
       sessionPath: session.sessionPath,
       // Pi summaries do not expose activity timestamps; persisted rows replace these as soon as
-      // their history is available.
+      // their history is available, and ordering treats the unknown timestamp as the newest.
       updatedAt: 0,
     })
     visibleIds.add(session.id)
     visiblePaths.add(session.sessionPath)
   }
   return [...pending, ...liveRows, ...recentSessions]
+}
+
+/**
+ * Orders a section's rows newest first. A live session carries no activity timestamp
+ * until Pi persists its history, and it is the newest row by definition: it was just
+ * started, so it must stay inside the visible rows instead of unfolding the section.
+ */
+function newestActivityFirst(left: RecentSession, right: RecentSession): number {
+  if (left.updatedAt === 0 || right.updatedAt === 0) {
+    if (left.updatedAt === right.updatedAt) return 0
+    return left.updatedAt === 0 ? -1 : 1
+  }
+  return right.updatedAt - left.updatedAt
 }
 
 /**

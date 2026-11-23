@@ -6,6 +6,7 @@ import {
   workspaceGroups,
   workspaceName,
 } from '../src/features/workspace/workspace-groups.ts'
+import { visibleWorkspaceSessionCount } from '../src/features/workspace/workspace-sidebar.ts'
 
 function session(cwd: string, id: string, updatedAt: number): RecentSession {
   return {
@@ -81,6 +82,29 @@ test('keeps a sent session visible until persistence returns it', () => {
     ),
     ['pending', 'persisted'],
   )
+})
+
+test('keeps a freshly started live session inside its section visible rows', () => {
+  const persisted = [
+    session('/active', 'a', 500),
+    session('/active', 'b', 400),
+    session('/active', 'c', 300),
+    session('/active', 'd', 200),
+    session('/active', 'e', 100),
+  ]
+  const groups = workspaceGroups(
+    persisted,
+    [],
+    [liveSession('fresh', '/active', '/sessions/fresh.jsonl')],
+    [],
+  )
+
+  // The section reveals its hidden history for a selected session below that window.
+  assert.deepEqual(
+    groups[0].sessions.slice(0, visibleWorkspaceSessionCount).map(({ id }) => id),
+    ['fresh', 'a', 'b', 'c'],
+  )
+  assert.equal(groups[0].latestActivity, 500)
 })
 
 test('names sections after their folder and qualifies shared basenames', () => {
