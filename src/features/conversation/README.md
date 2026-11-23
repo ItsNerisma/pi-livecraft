@@ -33,7 +33,7 @@ Conversation views are simplified (messages only), semi-detailed (tool headers o
 
 `user-message-anchors.ts` derives the marks from the reconciled thread entries, so prompts that only carry attachments are labelled instead of dropped. History prompts are addressed by their rendered index (`[data-message-index]`); prompts Pi has not reported yet stay addressable by streamed key (`[data-message-key]`). Both paths reuse the navigation that session-analysis targets already use, which mounts missing history, suspends auto-scroll, and resumes it only when the user returns to the bottom.
 
-The rail stays hidden for a single prompt and below 900px, where the message column no longer leaves a gutter.
+The rail renders as soon as the thread holds a user prompt, and stays hidden below 900px, where the message column no longer leaves a gutter.
 
 ## Tool call presentations
 

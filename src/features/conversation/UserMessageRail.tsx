@@ -14,8 +14,8 @@ export function UserMessageRail(
     onSelect: (anchor: UserMessageAnchor) => void
   },
 ) {
-  // A single prompt offers nothing to navigate between.
-  if (anchors.length < 2) return null
+  // Without a prompt there is nothing to navigate to.
+  if (anchors.length === 0) return null
   return (
     <nav aria-label='User messages' className='user-message-rail'>
       {anchors.map((anchor, index) => {

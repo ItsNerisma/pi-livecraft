@@ -31,7 +31,7 @@
   width: 3px;
   height: 9px;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--ink) 26%, transparent);
+  background: color-mix(in srgb, var(--ink) 32%, transparent);
   transition: width 180ms ease, background 180ms ease, transform 180ms ease;
 }
 .user-message-rail-mark:hover:not(:disabled) span,
