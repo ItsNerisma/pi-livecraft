@@ -562,6 +562,18 @@
 .composer-select-content.prompt {
   border-color: color-mix(in srgb, var(--accent) 42%, var(--line-strong));
 }
+/* Radix hides the viewport scrollbar and the content keeps its overflow clipped for
+   the rounded corners, so the viewport owns the scrolling: it inherits the content
+   max-height and long menus (the model picker lists every authenticated provider's
+   models) stay reachable. */
+.composer-select-content [data-radix-select-viewport] {
+  max-height: inherit;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.composer-select-content [data-radix-select-viewport]::-webkit-scrollbar {
+  display: block;
+}
 .composer-select-option {
   display: flex;
   align-items: center;

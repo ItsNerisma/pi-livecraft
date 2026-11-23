@@ -30,6 +30,9 @@ export const ModelSelect = memo(function ModelSelect(
             .catch(onError)
       }}
       options={models.map((item) => ({
+        // Several providers resell the same model IDs, so the name alone cannot
+        // identify the endpoint that will bill the request.
+        description: String(item.provider),
         label: String(item.name ?? item.id),
         value: `${item.provider}/${item.id}`,
       }))}

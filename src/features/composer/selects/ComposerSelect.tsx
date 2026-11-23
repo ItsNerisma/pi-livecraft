@@ -33,6 +33,8 @@ export const ComposerSelect = memo(function ComposerSelect(
     triggerRef?: RefObject<HTMLButtonElement | null>
   },
 ) {
+  const selectedLabel = options.find((option) => option.value === value)?.label
+
   return (
     <Select.Root
       disabled={disabled}
@@ -45,7 +47,7 @@ export const ComposerSelect = memo(function ComposerSelect(
         {loading
           ? <span aria-hidden='true' className='composer-select-spinner' />
           : <ComposerSelectIcon tone={tone} />}
-        <Select.Value placeholder={placeholder} />
+        <Select.Value placeholder={placeholder}>{selectedLabel}</Select.Value>
       </Select.Trigger>
       <Select.Portal>
         <Select.Content
