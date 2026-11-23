@@ -176,6 +176,9 @@
   .new-session {
     font-size: 12px;
   }
+  .new-session-browse {
+    flex-basis: 100%;
+  }
   .conversation {
     padding: 20px 12px;
   }

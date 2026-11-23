@@ -7,6 +7,7 @@ import {
 } from 'react'
 import { listDirectories, pickDirectory } from '../../api.ts'
 import { directoryCompletionTarget } from './directory-completion.ts'
+import { workspaceName } from './workspace-groups.ts'
 
 interface NewSessionDialogProps {
   recentPaths: string[]
@@ -179,94 +180,100 @@ export function NewSessionDialog(
         ref={dialogRef}
         role='dialog'
       >
-        <h2 id='new-session-title'>New session</h2>
-        <p>Pick the folder to work in.</p>
-        <button
-          className='new-session-browse'
-          disabled={busy}
-          onClick={() => void browse()}
-          type='button'
-        >
-          <FolderIcon />
-          {browsing ? 'Waiting for the folder dialog…' : 'Choose a folder…'}
-        </button>
-        {pickerUnavailable && (
-          <p className='new-session-hint'>
-            No system folder dialog is available. Type the path below instead.
-          </p>
-        )}
+        <h2 id='new-session-title'>New workspace</h2>
+        <p>A new Pi session starts in the folder you pick.</p>
         {visibleRecentPaths.length > 0 && (
-          <section aria-label='Recent workspaces' className='recent-workspaces'>
-            <strong>Recent workspaces</strong>
+          <section aria-labelledby='new-session-recent-title' className='recent-workspaces'>
+            <strong id='new-session-recent-title'>Recent workspaces</strong>
             <div>
               {visibleRecentPaths
                 .map((recentPath) => (
                   <button
+                    aria-pressed={path !== '' && recentPath === path}
                     key={recentPath}
                     onClick={() => updatePath(recentPath)}
                     type='button'
                   >
-                    {recentPath}
+                    <strong>{workspaceName(recentPath, visibleRecentPaths)}</strong>
+                    <span>{recentPath}</span>
                   </button>
                 ))}
             </div>
           </section>
         )}
-        <label className='directory-path-label' htmlFor='new-session-path'>
-          Workspace folder
-        </label>
-        <input
-          aria-activedescendant={activeSuggestion >= 0
-            ? `new-session-suggestion-${activeSuggestion}`
-            : undefined}
-          aria-autocomplete='list'
-          aria-controls={suggestions.length > 0 ? 'new-session-suggestions' : undefined}
-          aria-expanded={suggestions.length > 0}
-          aria-invalid={Boolean(error)}
-          autoComplete='off'
-          className='directory-path-input'
-          disabled={busy}
-          id='new-session-path'
-          onChange={(event) => updatePath(event.target.value)}
-          onKeyDown={handlePathKeyDown}
-          placeholder='~/projects or /absolute/path'
-          ref={inputRef}
-          role='combobox'
-          value={path}
-        />
-        <p className='directory-path-hint'>
-          Tab completes · ↑↓ navigate · Enter creates the session
-        </p>
-        {suggestions.length > 0 && (
-          <div
-            aria-label='Directory suggestions'
-            className='directory-suggestions'
-            id='new-session-suggestions'
-            role='listbox'
-          >
-            {suggestions.map((suggestion, index) => (
-              <div
-                aria-selected={index === activeSuggestion}
-                className={index === activeSuggestion ? 'active' : undefined}
-                id={`new-session-suggestion-${index}`}
-                key={suggestion}
-                onClick={() => {
-                  updatePath(suggestion)
-                  setActiveSuggestion(-1)
-                }}
-                onMouseDown={(event) => event.preventDefault()}
-                role='option'
-              >
-                {suggestion}
-              </div>
-            ))}
+        <div className='new-session-folder'>
+          <label className='directory-path-label' htmlFor='new-session-path'>
+            Workspace folder
+          </label>
+          <div className='directory-path-row'>
+            <input
+              aria-activedescendant={activeSuggestion >= 0
+                ? `new-session-suggestion-${activeSuggestion}`
+                : undefined}
+              aria-autocomplete='list'
+              aria-controls={suggestions.length > 0 ? 'new-session-suggestions' : undefined}
+              aria-expanded={suggestions.length > 0}
+              aria-invalid={Boolean(error)}
+              autoComplete='off'
+              className='directory-path-input'
+              disabled={busy}
+              id='new-session-path'
+              onChange={(event) => updatePath(event.target.value)}
+              onKeyDown={handlePathKeyDown}
+              placeholder='~/projects or /absolute/path'
+              ref={inputRef}
+              role='combobox'
+              value={path}
+            />
+            <button
+              className='new-session-browse'
+              disabled={busy}
+              onClick={() => void browse()}
+              type='button'
+            >
+              <FolderIcon />
+              {browsing ? 'Opening…' : 'Choose folder…'}
+            </button>
           </div>
-        )}
+          {pickerUnavailable && (
+            <p className='new-session-hint'>
+              No system folder dialog is available. Type the path instead.
+            </p>
+          )}
+          {suggestions.length > 0 && (
+            <div
+              aria-label='Directory suggestions'
+              className='directory-suggestions'
+              id='new-session-suggestions'
+              role='listbox'
+            >
+              {suggestions.map((suggestion, index) => (
+                <div
+                  aria-selected={index === activeSuggestion}
+                  className={index === activeSuggestion ? 'active' : undefined}
+                  id={`new-session-suggestion-${index}`}
+                  key={suggestion}
+                  onClick={() => {
+                    updatePath(suggestion)
+                    setActiveSuggestion(-1)
+                  }}
+                  onMouseDown={(event) => event.preventDefault()}
+                  role='option'
+                >
+                  {suggestion}
+                </div>
+              ))}
+            </div>
+          )}
+          <p className='directory-path-hint'>
+            Tab completes · ↑↓ navigate · Esc cancels
+          </p>
+        </div>
         {error && <p className='new-session-error' id='new-session-error' role='alert'>{error}</p>}
         <div className='modal-actions'>
           <button disabled={busy} onClick={onClose} type='button'>Cancel</button>
           <button className='primary' disabled={busy || !path.trim()} type='submit'>
-            {creating ? 'Starting…' : 'Create session'}
+            {creating ? 'Starting…' : 'New workspace'}
           </button>
         </div>
       </form>

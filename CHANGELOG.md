@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Group sessions into collapsible sections named after their workspace folder, replacing the single main workspace.
-- Create a session in any folder from one `New session` dialog that opens the host's native folder dialog, with recent workspaces and typed paths as fallbacks.
+- Create a session in any folder from one `New workspace` dialog that opens the host's native folder dialog, with recent workspaces and typed paths as fallbacks.
 - Add a session to an existing workspace from the `＋` button on its section.
 
 ### Changed
