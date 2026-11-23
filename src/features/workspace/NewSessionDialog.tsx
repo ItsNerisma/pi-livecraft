@@ -186,36 +186,34 @@ export function NewSessionDialog(
           <label className='directory-path-label' htmlFor='new-session-path'>
             Workspace folder
           </label>
-          <div className='directory-path-row'>
-            <input
-              aria-activedescendant={activeSuggestion >= 0
-                ? `new-session-suggestion-${activeSuggestion}`
-                : undefined}
-              aria-autocomplete='list'
-              aria-controls={suggestions.length > 0 ? 'new-session-suggestions' : undefined}
-              aria-expanded={suggestions.length > 0}
-              aria-invalid={Boolean(error)}
-              autoComplete='off'
-              className='directory-path-input'
-              disabled={busy}
-              id='new-session-path'
-              onChange={(event) => updatePath(event.target.value)}
-              onKeyDown={handlePathKeyDown}
-              placeholder='~/projects or /absolute/path'
-              ref={inputRef}
-              role='combobox'
-              value={path}
-            />
-            <button
-              className='new-session-browse'
-              disabled={busy}
-              onClick={() => void browse()}
-              type='button'
-            >
-              <FolderIcon />
-              {browsing ? 'Opening…' : 'Choose folder…'}
-            </button>
-          </div>
+          <button
+            className='new-session-browse'
+            disabled={busy}
+            onClick={() => void browse()}
+            type='button'
+          >
+            <FolderIcon />
+            {browsing ? 'Opening…' : 'Choose folder…'}
+          </button>
+          <input
+            aria-activedescendant={activeSuggestion >= 0
+              ? `new-session-suggestion-${activeSuggestion}`
+              : undefined}
+            aria-autocomplete='list'
+            aria-controls={suggestions.length > 0 ? 'new-session-suggestions' : undefined}
+            aria-expanded={suggestions.length > 0}
+            aria-invalid={Boolean(error)}
+            autoComplete='off'
+            className='directory-path-input'
+            disabled={busy}
+            id='new-session-path'
+            onChange={(event) => updatePath(event.target.value)}
+            onKeyDown={handlePathKeyDown}
+            placeholder='~/projects or /absolute/path'
+            ref={inputRef}
+            role='combobox'
+            value={path}
+          />
           {pickerUnavailable && (
             <p className='new-session-hint'>
               No system folder dialog is available. Type the path instead.

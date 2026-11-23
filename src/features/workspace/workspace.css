@@ -591,37 +591,31 @@
   max-height: min(680px, calc(100dvh - 40px));
   padding: 20px;
 }
+.new-session-modal h2 {
+  margin-bottom: 4px;
+}
+.new-session-modal > p:not(.new-session-error) {
+  margin-bottom: 16px;
+}
 .new-session-folder + .recent-workspaces {
-  margin-top: 12px;
+  margin-top: 14px;
   border-top: 1px solid var(--line);
   padding-top: 12px;
 }
-.directory-path-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.directory-path-row .directory-path-input {
-  flex: 1 1 190px;
-  width: auto;
-  min-width: 0;
-  height: 40px;
-  padding: 0 11px;
-}
 .new-session-browse {
   display: inline-flex;
-  flex: 0 0 auto;
+  width: 100%;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  height: 40px;
+  gap: 8px;
+  height: 44px;
   border: 1px solid var(--line-strong);
   border-radius: 9px;
   padding: 0 13px;
   background: var(--surface-raised);
   color: var(--ink);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: 13px;
+  font-weight: 700;
   white-space: nowrap;
   transition:
     border-color 180ms ease,
@@ -664,7 +658,7 @@
 }
 .recent-workspaces > strong {
   display: block;
-  margin-bottom: 7px;
+  margin-bottom: 6px;
   color: var(--muted);
   font-size: 10px;
   font-weight: 750;
@@ -729,6 +723,9 @@
 .recent-workspaces button:active:not(:disabled) {
   transform: scale(0.97);
 }
+.new-session-modal .modal-actions {
+  margin-top: 14px;
+}
 .new-session-modal .modal-actions button:hover:not(:disabled) {
   transform: translateY(-1px);
 }
@@ -749,10 +746,14 @@
   transform: none;
 }
 .directory-path-label {
+  display: block;
   margin: 0 0 7px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
+}
+.new-session-browse + .directory-path-input {
+  margin-top: 8px;
 }
 .directory-path-input {
   width: 100%;
