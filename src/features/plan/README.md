@@ -11,6 +11,7 @@ The plan panel shows the macro plan Pi committed for the current task. It stays 
 - steps are written in the language the user writes in, and their text stays stable so the panel keeps their timing;
 - a rejected call returns an error to the model and keeps the previous plan;
 - the tool acknowledges one line of progress so the model never maintains its own count, and names the step to work on next so it transitions the plan instead of finishing every step in one final call.
+- a busy turn forgets the plan it committed, so after `planStaleToolCalls` tool calls without an update the extension appends one hidden reminder at `turn_end` that reports the plan's actual state back (`planStaleReminder`); each accepted update re-arms it, so one staleness episode never produces more than one reminder;
 - a model that kept working without updating its plan would still settle with the last step in progress, so the extension injects one hidden reminder before settling and one continuation buys it a request to close the plan; an aborted run, a closed plan, and a plan written as the last action get none.
 
 The normalized plan travels in the tool result's `details`. Pi persists `details` in the session, keeps them out of the model context, and forwards them in `tool_execution_end` events, so the panel needs no extension memory, no status channel, and no backend cache.

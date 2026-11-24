@@ -7,6 +7,8 @@ import {
   planMinimumSteps,
   planProtocol,
   planSettleReminder,
+  planStaleReminder,
+  planStaleToolCalls,
   planVersion,
   planStepTextLimit,
   type Plan,
@@ -306,16 +308,34 @@ test('describes a committed plan in the conversation thread', () => {
 test('reminds Pi to close an unfinished plan it kept working on before settling', () => {
   const plan = parsePlanArguments(planArguments('completed', 'in_progress', 'pending')) as Plan
 
-  assert.equal(planSettleReminder(undefined, true), undefined)
+  assert.equal(planSettleReminder(undefined, 4), undefined)
   // A plan updated as the last action, or already closed, needs no reminder.
-  assert.equal(planSettleReminder(plan, false), undefined)
+  assert.equal(planSettleReminder(plan, 0), undefined)
   assert.equal(
-    planSettleReminder(parsePlanArguments(planArguments('completed', 'skipped')) as Plan, true),
+    planSettleReminder(parsePlanArguments(planArguments('completed', 'skipped')) as Plan, 4),
     undefined,
   )
-  const reminder = planSettleReminder(plan, true) ?? ''
+  const reminder = planSettleReminder(plan, 2) ?? ''
   assert.match(reminder, /1\/3 steps done/)
   assert.match(reminder, /"Step 2" in progress/)
+  assert.match(reminder, /update_plan/)
+})
+
+test('reports a stale plan back to a busy turn once it stops moving', () => {
+  const plan = parsePlanArguments(planArguments('completed', 'in_progress', 'pending')) as Plan
+
+  // No plan, a fresh plan, or a closed plan never triggers the mid-run reminder.
+  assert.equal(planStaleReminder(undefined, planStaleToolCalls), undefined)
+  assert.equal(planStaleReminder(plan, planStaleToolCalls - 1), undefined)
+  assert.equal(
+    planStaleReminder(parsePlanArguments(planArguments('completed', 'skipped')) as Plan, 9),
+    undefined,
+  )
+  const reminder = planStaleReminder(plan, 5) ?? ''
+  assert.match(reminder, /5 tool calls/)
+  assert.match(reminder, /1\/3 steps done/)
+  assert.match(reminder, /"Step 2" still in progress/)
+  assert.match(reminder, /mark it completed/)
   assert.match(reminder, /update_plan/)
 })
 

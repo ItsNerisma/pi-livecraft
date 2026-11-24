@@ -8,6 +8,7 @@ import {
   planMaximumSteps,
   planMinimumSteps,
   planSettleReminder,
+  planStaleReminder,
   planStepStatuses,
   planStepTextLimit,
   type Plan,
@@ -21,16 +22,18 @@ const rejectedPlanMessage =
 
 /** One-line policy so adoption never depends on the model discovering the tool. */
 const planPolicy =
-  'The interface shows your plan live while you work. Commit a task that needs more than two tool calls with update_plan before your first action, then mark each step in progress when you start it and completed when you finish it.'
+  'The interface shows your plan live while you work. Commit a task that needs more than two tool calls with update_plan before your first action. Then keep it current: immediately after the tool call that finishes a step, call update_plan to mark that step completed and the step you start next in_progress. Never leave several transitions for one final call.'
 
 /** Registers the tool that commits and updates the macro plan shown above the composer. */
 export default function registerPlan(pi: ExtensionAPI): void {
   const clock = new PlanClock()
   /** Last plan Pi committed or resumed, so a settle knows whether it still tracks unfinished work. */
   let latest: Plan | undefined
-  /** Whether Pi used another tool after that plan: an update written last needs no reminder. */
-  let workedSinceUpdate = false
-  /** One reminder per run, so a model that ignores it cannot keep the run open. */
+  /** Tool calls since the last accepted plan: staleness decides the mid-run reminder. */
+  let toolCallsSinceUpdate = 0
+  /** One stale reminder per staleness episode, re-armed by each accepted update. */
+  let staleReminded = false
+  /** One settle reminder per run, so a model that ignores it cannot keep the run open. */
   let reminded = false
 
   /** Restores accumulated timings after a resume, reload, or fork without any extra storage. */
@@ -52,21 +55,39 @@ export default function registerPlan(pi: ExtensionAPI): void {
 
   pi.on('agent_start', () => {
     clock.start(Date.now())
-    workedSinceUpdate = false
+    toolCallsSinceUpdate = 0
+    staleReminded = false
     reminded = false
   })
   pi.on('agent_settled', () => clock.settle(Date.now()))
   pi.on('session_start', (_event, ctx) => restore(ctx))
 
   pi.on('tool_execution_end', (event) => {
-    if (event.toolName !== toolName) workedSinceUpdate = true
+    if (event.toolName !== toolName) toolCallsSinceUpdate += 1
+  })
+
+  // A busy turn forgets the plan it committed; one hidden reminder reports its actual state back
+  // after enough tool calls without an update, so the model transitions it instead of abandoning it.
+  pi.on('turn_end', (event) => {
+    if (event.outcome !== 'completed' || event.toolResults.length === 0 || staleReminded) return
+    const reminder = planStaleReminder(latest, toolCallsSinceUpdate)
+    if (reminder === undefined) return
+    staleReminded = true
+    return {
+      entries: [...event.entries, {
+        type: 'custom_message' as const,
+        customType: reminderType,
+        content: reminder,
+        display: false,
+      }],
+    }
   })
 
   // Pi would otherwise settle with the last step still in progress, leaving the panel paused
   // above a finished answer; one hidden reminder buys the model a request to close its plan.
   pi.on('agent_before_settle', (event) => {
     if (reminded || event.outcome !== 'completed') return
-    const reminder = planSettleReminder(latest, workedSinceUpdate)
+    const reminder = planSettleReminder(latest, toolCallsSinceUpdate)
     if (reminder === undefined) return
     reminded = true
     return {
@@ -92,7 +113,7 @@ export default function registerPlan(pi: ExtensionAPI): void {
     description: 'Commit the macro plan for the current task so the user can follow your steps.',
     promptSnippet: 'Commit and update the macro plan for the current task',
     promptGuidelines: [
-      'Call update_plan before the first tool call of every task that needs more than two steps, and again at every step transition.',
+      'Call update_plan before the first tool call of every task that needs more than two steps, and again immediately after the tool call that finishes each step.',
       'Mark a step in progress when you start it and completed when you finish it; never finish several steps in one final call.',
       'Write every update_plan step in the language the user is writing in.',
       `Skip update_plan for a single-step request and for a follow-up that finishes the plan already committed. Send ${planMinimumSteps}-${planMaximumSteps} steps.`,
@@ -118,7 +139,8 @@ export default function registerPlan(pi: ExtensionAPI): void {
       // `details` reaches Pi Livecraft and stays out of the model context.
       const committed: Plan = { ...plan, activeMs, recordedAt: now, steps }
       latest = committed
-      workedSinceUpdate = false
+      toolCallsSinceUpdate = 0
+      staleReminded = false
       return {
         content: [{ type: 'text' as const, text: acknowledge(committed) }],
         details: committed,

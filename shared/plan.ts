@@ -5,6 +5,8 @@ export const planVersion = 1
 export const planMinimumSteps = 2
 export const planMaximumSteps = 8
 export const planStepTextLimit = 120
+/** Tool calls without an update that make a plan stale enough to remind the model mid-run. */
+export const planStaleToolCalls = 3
 export const planStepStatuses = ['pending', 'in_progress', 'completed', 'skipped'] as const
 
 export type PlanStepStatus = (typeof planStepStatuses)[number]
@@ -92,9 +94,9 @@ function isDone(step: PlanStep): boolean {
  */
 export function planSettleReminder(
   plan: Plan | undefined,
-  workedSinceUpdate: boolean,
+  toolCallsSinceUpdate: number,
 ): string | undefined {
-  if (plan === undefined || !workedSinceUpdate) return undefined
+  if (plan === undefined || toolCallsSinceUpdate < 1) return undefined
   const done = plan.steps.filter(isDone).length
   if (done === plan.steps.length) return undefined
   const current = plan.steps.find(({ status }) => status === 'in_progress')
@@ -102,4 +104,23 @@ export function planSettleReminder(
     current === undefined ? '' : `, with "${current.text}" in progress`
   }`
   return `Your plan still reads ${progress}, but you called tools after updating it. If the work is done, call update_plan once with the finished steps marked completed and skip the rest, then reply in one short line about the plan instead of repeating your answer. If you are waiting on the user, leave the plan as it is and say what you need.`
+}
+
+/**
+ * Reminder Pi receives at the end of a turn that kept calling tools without touching a plan whose
+ * steps stopped moving. It reports the plan's actual state back to the model, so a plan left
+ * behind by a busy turn is not abandoned: the model either transitions it or knowingly continues.
+ */
+export function planStaleReminder(
+  plan: Plan | undefined,
+  toolCallsSinceUpdate: number,
+): string | undefined {
+  if (plan === undefined || toolCallsSinceUpdate < planStaleToolCalls) return undefined
+  const done = plan.steps.filter(isDone).length
+  if (done === plan.steps.length) return undefined
+  const current = plan.steps.find(({ status }) => status === 'in_progress')
+  const progress = `${done}/${plan.steps.length} steps done${
+    current === undefined ? '' : `, with "${current.text}" still in progress`
+  }`
+  return `You ran ${toolCallsSinceUpdate} tool calls since your last update_plan, and your plan still reads ${progress}. If a step's work is finished, call update_plan now: mark it completed, mark the step you start next in_progress, and keep the other steps unchanged. If the current step genuinely needs more work, keep the plan as it is and continue.`
 }
