@@ -24,10 +24,10 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 ## States
 
 - `active` — at least one step is pending or in progress; the header shows progress and the current step.
-- `complete` — every step is `completed` or `skipped`; the header reads "All steps done". While Pi writes the answer, the panel stays above the composer; when the turn settles, the same panel moves into the conversation immediately before its turn-usage row.
-- A settled unfinished plan is also moved into the conversation and marked `paused`; the conversation's `update_plan` card remains the durable record in either case.
+- `complete` — every step is `completed` or `skipped`; the header reads "All steps done". While Pi writes the answer, the panel stays above the composer; when the turn settles, it moves into the conversation immediately before its turn-usage row.
+- `paused` — Pi settled with unfinished steps. The plan stays temporarily above the composer with a `paused` note; it is not archived as a historical panel. A later user turn clears it, while the conversation's `update_plan` call remains in the tool history.
 
-`useConversationRuntime` tracks `agent_start` and `agent_settled` so `App.tsx` renders the live panel above the composer only during the turn. `Conversation.tsx` reconstructs and places each settled panel before that turn's usage row. Its content is already inset to the message column, so the panel keeps the same width as its composer placement. Historical panels use the timing values persisted in each plan payload and do not overwrite the live panel's timing store. `PlanPanel.tsx` owns folding: it stores the identity of the folded plan (`planIdentity()`, the step texts) in `localStorage`, so status changes keep the panel folded and a different plan reopens once.
+`useConversationRuntime` tracks `agent_start` and `agent_settled` so `App.tsx` keeps active and paused plans above the composer, and moves only completed plans to `Conversation.tsx` before that turn's usage row. Its content is already inset to the message column, so the panel keeps the same width as its composer placement. Historical panels use the timing values persisted in each plan payload and do not overwrite the live panel's timing store. `PlanPanel.tsx` owns folding: it stores the identity of the folded plan (`planIdentity()`, the step texts) in `localStorage`, so status changes keep the panel folded and a different plan reopens once.
 
 ## Timing
 

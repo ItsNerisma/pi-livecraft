@@ -233,6 +233,24 @@ test('keeps each turn plan associated with its own final usage row', () => {
   assert.equal(plans.get(6)?.plan.steps[0]?.text, 'Second task A')
 })
 
+test('keeps an unfinished paused plan out of conversation history', () => {
+  const unfinishedPlan = {
+    ...planOf({ text: 'Finished', status: 'completed' }, {
+      text: 'Waiting',
+      status: 'in_progress',
+    }),
+    activeMs: 10,
+    recordedAt: 10,
+  }
+  const messages = [
+    { role: 'user', content: 'Pause here' },
+    planResult(unfinishedPlan),
+    { role: 'assistant', content: 'I need input to continue' },
+  ]
+
+  assert.equal(plansByTurnUsage(messages, new Set([2])).size, 0)
+})
+
 test('does not attach a new plan to usage from the previous response', () => {
   const details = { ...planOf(...stepList('completed', 'completed')), activeMs: 10, recordedAt: 10 }
   const messages = [

@@ -1182,7 +1182,7 @@ function App() {
                     repositoryRoot={gitSnapshot?.root}
                     scrollToBottomRequest={scrollToBottomRequest}
                     workingDirectory={selectedSession.cwd}
-                    settledPlan={agentTurnRunning ? undefined : plan}
+                    settledPlan={agentTurnRunning || !plan?.complete ? undefined : plan}
                     sessionId={selectedSession.id}
                     toolDurations={observedToolDurations}
                     toolExecutions={toolExecutions}
@@ -1236,8 +1236,8 @@ function App() {
                     </div>
                   </div>
                   <div className='composer-area'>
-                    {/* Keep the plan in the composer only while Pi is running; the tool call stays in history. */}
-                    {plan && agentTurnRunning && (
+                    {/* Active and paused plans stay temporary above the composer. */}
+                    {plan && (agentTurnRunning || !plan.complete) && (
                       <PlanPanel
                         key={selectedSession.id}
                         plan={plan}

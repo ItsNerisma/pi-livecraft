@@ -67,7 +67,7 @@ export function plansByTurnUsage(
   let currentPlan: PlanState | undefined
   let latestUsageIndex: number | undefined
   const finishTurn = (): void => {
-    if (currentPlan && latestUsageIndex !== undefined)
+    if (currentPlan?.complete && latestUsageIndex !== undefined)
       plans.set(latestUsageIndex, currentPlan)
     currentPlan = undefined
     latestUsageIndex = undefined
