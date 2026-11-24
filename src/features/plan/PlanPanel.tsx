@@ -14,6 +14,13 @@ import type { PlanStep, PlanStepStatus } from '../../../shared/plan.ts'
 
 const collapsedPlanKey = 'pi-livecraft.plan-collapsed'
 
+const markers: Record<PlanStepStatus, string> = {
+  pending: '○',
+  in_progress: '●',
+  completed: '✓',
+  skipped: '–',
+}
+
 const statusLabels: Record<PlanStepStatus, string> = {
   pending: 'pending',
   in_progress: 'in progress',
@@ -210,13 +217,7 @@ export function PlanPanel(
                 data-status={step.status}
                 key={`${index}:${step.text}`}
               >
-                <span aria-hidden='true' className='plan-step-marker'>
-                  {step.status === 'completed'
-                    ? '✓'
-                    : step.status === 'skipped'
-                    ? '–'
-                    : index + 1}
-                </span>
+                <span aria-hidden='true' className='plan-step-marker'>{markers[step.status]}</span>
                 <span className='plan-step-text'>{step.text}</span>
                 {(step.status !== 'pending' || duration > 0) && (
                   <span className='plan-step-duration'>{formatPlanDuration(duration)}</span>

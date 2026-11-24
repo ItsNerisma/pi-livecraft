@@ -25,7 +25,7 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 
 ## States
 
-- `active` — at least one step is pending or in progress; the header shows the one-based current step inside a circular completion ring, and the numbered rows use distinct completion and skipped markers.
+- `active` — at least one step is pending or in progress; the header shows the one-based current step inside a circular completion ring, while each row keeps its original status symbol.
 - `complete` — every step is `completed` or `skipped`; the header reads "All steps done". The panel remains above the composer while Pi finishes its response; once the turn settles and control returns, it moves into the conversation immediately before its turn-usage row.
 - `paused` — Pi settled with unfinished steps. The plan stays temporarily above the composer with a `paused` note; it is not archived as a historical panel. A later user turn clears it, while the conversation's `update_plan` call remains in the tool history. Starting another turn does not resume its clock or clear `paused` until Pi commits a fresh `update_plan`.
 
