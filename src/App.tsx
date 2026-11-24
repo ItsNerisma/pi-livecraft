@@ -1233,11 +1233,12 @@ function App() {
                   </div>
                   <div className='composer-area'>
                     {/* A finished plan stops tracking as soon as Pi settles its turn. */}
-                    {plan && (selectedSession.status === 'running' || !plan.complete) && (
+                    {plan && (agentBusy[selectedSession.id] || !plan.complete) && (
                       <PlanPanel
                         key={selectedSession.id}
                         plan={plan}
-                        running={selectedSession.status === 'running'}
+                        running={agentBusy[selectedSession.id]
+                          ?? selectedSession.status === 'running'}
                         sessionId={selectedSession.id}
                       />
                     )}
