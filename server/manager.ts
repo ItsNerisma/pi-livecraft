@@ -33,6 +33,7 @@ const idleCloseAfterMs = readDuration('PI_LIVECRAFT_IDLE_CLOSE_AFTER_MS', 10 * 6
 const clients = new Set<Socket>()
 const sessions = new Map<string, ManagedSession>()
 const openingSessions = new Map<string, Promise<SessionSummary>>()
+const reopeningSessions = new Map<string, Promise<ManagedSession>>()
 const restartExitCode = readRestartExitCode()
 const supervised = process.env.PI_LIVECRAFT_MANAGER_SUPERVISED === '1'
   && restartExitCode !== undefined
@@ -345,6 +346,42 @@ async function openSession(request: ManagerRequest): Promise<SessionSummary> {
   }
 }
 
+/** Reopens an exited session from its persisted Pi history before accepting a command. */
+async function resumeExitedSession(session: ManagedSession): Promise<ManagedSession> {
+  if (session.summary.status !== 'exited') return session
+  if (!session.summary.sessionPath)
+    throw new Error('Pi session has no saved history to resume')
+
+  const existing = reopeningSessions.get(session.summary.id)
+  if (existing) return existing
+
+  const summary: SessionSummary = {
+    ...session.summary,
+    status: 'starting',
+    pendingUi: [],
+  }
+  const previous = sessions.get(summary.id)
+  const operation = (async (): Promise<ManagedSession> => {
+    try {
+      await startSession(summary)
+    } catch (error) {
+      if (previous) sessions.set(summary.id, previous)
+      throw error
+    }
+    const reopened = sessions.get(summary.id)
+    if (!reopened) throw new Error('Pi session could not be resumed')
+    broadcast({ kind: 'event', event: 'session_created', sessionId: summary.id, data: summary })
+    return reopened
+  })()
+  reopeningSessions.set(session.summary.id, operation)
+  try {
+    return await operation
+  } finally {
+    if (reopeningSessions.get(session.summary.id) === operation)
+      reopeningSessions.delete(session.summary.id)
+  }
+}
+
 /** Stops a managed Pi process while leaving its persisted session available for reopening. */
 async function closeSession(request: ManagerRequest): Promise<{ closed: true }> {
   if (typeof request.sessionId !== 'string') throw new Error('Session id is required')
@@ -603,9 +640,9 @@ async function sendCommand(request: ManagerRequest): Promise<JsonObject> {
   if (typeof request.sessionId !== 'string' || !isObject(request.command)) {
     throw new Error('Session id and Pi command are required')
   }
-  const session = sessions.get(request.sessionId)
-  if (!session) throw new Error('Unknown session')
-  if (session.summary.status === 'exited') throw new Error('Pi session has exited')
+  const existingSession = sessions.get(request.sessionId)
+  if (!existingSession) throw new Error('Unknown session')
+  const session = await resumeExitedSession(existingSession)
   if (session.switching && request.command.type !== 'extension_ui_response')
     throw new Error('Pi session is switching')
 

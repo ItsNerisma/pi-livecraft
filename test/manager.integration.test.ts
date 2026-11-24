@@ -511,7 +511,7 @@ test('completes a manual compact without timeout', { timeout: 10_000 }, async ()
 })
 
 test(
-  'automatically closes an idle Pi process after its configured timeout',
+  'automatically closes and resumes an idle Pi session',
   { timeout: 10_000 },
   async () => {
     const directory = await mkdtemp(join(tmpdir(), 'pi-manager-'))
@@ -540,6 +540,13 @@ test(
       const event = await exited
       assert.deepEqual(event.data, { reason: 'idle' })
       assert.equal(sessionStatus(await client.request('list', {}), sessionId(opened)), 'exited')
+
+      const resumedPrompt = await client.request('command', {
+        sessionId: sessionId(opened),
+        command: { type: 'prompt', message: 'Continue after automatic close' },
+      })
+      assert.equal(resumedPrompt.ok, true)
+      assert.equal(sessionStatus(await client.request('list', {}), sessionId(opened)), 'running')
     } finally {
       client.close()
       await stopProcess(manager)
