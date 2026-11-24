@@ -32,7 +32,12 @@ const statusLabels: Record<PlanStepStatus, string> = {
  * user folded away and reopens when Pi replaces the plan with different steps.
  */
 export function PlanPanel(
-  { plan, running, sessionId }: { plan: PlanState; running: boolean; sessionId: string },
+  { plan, running, sessionId, placement = 'composer' }: {
+    plan: PlanState
+    running: boolean
+    sessionId: string
+    placement?: 'composer' | 'conversation'
+  },
 ) {
   const identity = useMemo(() => planIdentity(plan), [plan])
   const [collapsed, setCollapsed] = useState(() => readCollapsedPlan() === identity)
@@ -159,7 +164,7 @@ export function PlanPanel(
       aria-label='Task plan'
       className={`plan-panel${collapsed ? ' is-collapsed' : ''}${
         plan.complete ? ' is-complete' : ''
-      }`}
+      }${placement === 'conversation' ? ' in-conversation' : ''}`}
     >
       <Tooltip
         label={`Plan: ${plan.done}/${plan.total} steps done${

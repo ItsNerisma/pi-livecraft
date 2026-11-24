@@ -373,6 +373,7 @@ function App() {
 
   const {
     activity,
+    agentTurnRunning,
     addOptimisticUserMessage,
     addPendingSteering,
     clearActivity,
@@ -1180,7 +1181,7 @@ function App() {
                     repositoryRoot={gitSnapshot?.root}
                     scrollToBottomRequest={scrollToBottomRequest}
                     workingDirectory={selectedSession.cwd}
-                    settledPlan={selectedSession.status === 'running' ? undefined : plan}
+                    settledPlan={agentTurnRunning ? undefined : plan}
                     sessionId={selectedSession.id}
                     toolDurations={observedToolDurations}
                     toolExecutions={toolExecutions}
@@ -1235,11 +1236,11 @@ function App() {
                   </div>
                   <div className='composer-area'>
                     {/* Keep the plan in the composer only while Pi is running; the tool call stays in history. */}
-                    {plan && selectedSession.status === 'running' && (
+                    {plan && agentTurnRunning && (
                       <PlanPanel
                         key={selectedSession.id}
                         plan={plan}
-                        running
+                        running={agentTurnRunning}
                         sessionId={selectedSession.id}
                       />
                     )}

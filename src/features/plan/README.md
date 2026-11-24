@@ -1,6 +1,6 @@
 # Plan panel
 
-The plan panel shows the macro plan Pi committed for the current task, directly above the composer. It stays out of the way while Pi works, expands to the full step list on demand, and disappears once Pi settles a plan it finished, so it only ever tracks work still in progress.
+The plan panel shows the macro plan Pi committed for the current task. It stays above the composer while Pi works, expands to the full step list on demand, and moves into the conversation before turn usage when Pi settles.
 
 ## Contract with Pi
 
@@ -27,7 +27,7 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 - `complete` — every step is `completed` or `skipped`; the header reads "All steps done". While Pi writes the answer, the panel stays above the composer; when the turn settles, the same panel moves into the conversation immediately before its turn-usage row.
 - A settled unfinished plan is also moved into the conversation and marked `paused`; the conversation's `update_plan` card remains the durable record in either case.
 
-`App.tsx` chooses the live composer surface while the session runs. `Conversation.tsx` places a settled plan before the final turn-usage row. `PlanPanel.tsx` owns folding: it stores the identity of the folded plan (`planIdentity()`, the step texts) in `localStorage`, so status changes keep the panel folded and a different plan reopens once. The panel takes the width of the conversation's message column, not the wider composer, and keeps the same gap above and below.
+`useConversationRuntime` tracks `agent_start` and `agent_settled` so `App.tsx` renders the panel in exactly one place: above the composer during the turn, then in `Conversation.tsx` before the final turn-usage row. The conversation's content is already inset to the message column, so the moved panel keeps the same width as its composer placement. `PlanPanel.tsx` owns folding: it stores the identity of the folded plan (`planIdentity()`, the step texts) in `localStorage`, so a status change keeps the panel folded and a different plan reopens once.
 
 ## Timing
 

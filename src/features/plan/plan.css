@@ -7,6 +7,10 @@
   background: var(--surface-raised);
   color: var(--ink);
 }
+.plan-panel.in-conversation {
+  /* The conversation content is already inset to the message column. */
+  margin: 0 0 16px;
+}
 .plan-panel.is-complete {
   border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
 }

@@ -56,6 +56,7 @@ export function useConversationRuntime(
   const [liveMessages, setLiveMessages] = useState<LiveMessage[]>([])
   const [pendingSteering, setPendingSteering] = useState<string[]>([])
   const [activity, setActivity] = useState<Activity | null>(null)
+  const [agentTurnRunning, setAgentTurnRunning] = useState(false)
   const [plan, setPlan] = useState<PlanState | undefined>()
   const [toolExecutions, setToolExecutions] = useState<ToolExecution[]>([])
   const [observedToolDurations, setObservedToolDurations] = useState<ReadonlyMap<string, number>>(
@@ -205,7 +206,10 @@ export function useConversationRuntime(
             setPendingSteering(steering)
         })
       }
-      if (event.type === 'agent_start') requestStartedAtRef.current = performance.now()
+      if (event.type === 'agent_start') {
+        setAgentTurnRunning(true)
+        requestStartedAtRef.current = performance.now()
+      }
       const streamedToolCall = toolCallInUpdate(event)
       if (streamedToolCall) {
         flushLiveUpdates()
@@ -291,7 +295,10 @@ export function useConversationRuntime(
               .type === 'agent_settled' && requestStartedAtRef.current !== undefined
         ? performance.now() - requestStartedAtRef.current
         : undefined
-      if (event.type === 'agent_settled') requestStartedAtRef.current = undefined
+      if (event.type === 'agent_settled') {
+        setAgentTurnRunning(false)
+        requestStartedAtRef.current = undefined
+      }
       if (event.type === 'message_end' || event.type === 'agent_settled') {
         flushLiveUpdates()
         setToolExecutions(interruptToolCallGeneration)
@@ -317,6 +324,7 @@ export function useConversationRuntime(
     setPendingSteering([])
     queueUpdateVersionRef.current += 1
     setActivity(null)
+    setAgentTurnRunning(false)
     setPlan(undefined)
     setToolExecutions([])
     setObservedToolDurations(new Map())
@@ -366,6 +374,7 @@ export function useConversationRuntime(
 
   return {
     activity,
+    agentTurnRunning,
     addOptimisticUserMessage,
     addPendingSteering,
     clearActivity,

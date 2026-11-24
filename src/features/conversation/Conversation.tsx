@@ -416,6 +416,7 @@ export function Conversation(
                       plan={settledPlan}
                       running={false}
                       sessionId={sessionId}
+                      placement='conversation'
                     />
                   )}
                   {usage && <TurnUsage turnNumber={turnNumbers.get(index)} usage={usage} />}
