@@ -48,7 +48,7 @@ Follow the [step-by-step guide](/docs/HOW-TO-TOOL-PRESENTATION.md) before adding
 
 `Markdown.tsx` renders through React-Markdown with GFM. Fenced blocks are highlighted only for the languages `CodeHighlighter.tsx` registers; every other block stays plain text.
 
-A block tagged `mermaid` is replaced by `MermaidBlock.tsx`, which loads Mermaid on first use and renders SVG. The plain code block stays visible while the library loads and replaces the diagram whenever Mermaid rejects the source, so a malformed diagram never costs the reader its text. Colours come from `conversation-actions.css` rather than Mermaid theme variables, which reject CSS variables because Mermaid derives palettes with khroma; the overrides cover flowchart nodes, clusters, edges, labels, and actor lines, and other diagram types keep Mermaid's neutral palette.
+A block tagged `mermaid` is replaced by `MermaidBlock.tsx`, which loads Mermaid on first use and renders SVG. The plain code block stays visible while the library loads and replaces the diagram whenever Mermaid rejects the source, so a malformed diagram never costs the reader its text. The diagram keeps its natural size and scrolls horizontally; its hover actions copy the source and scale the SVG in 25 % steps up to 300 %, with the percentage resetting the zoom. Colours come from `conversation-actions.css` rather than Mermaid theme variables, which reject CSS variables because Mermaid derives palettes with khroma; the overrides cover flowchart nodes, clusters, edges, labels, and actor lines, and other diagram types keep Mermaid's neutral palette.
 
 ## Contextual conversation actions
 

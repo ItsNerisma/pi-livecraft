@@ -18,10 +18,15 @@ export function CopyablePre({ children, onError }: CodeBlockProps) {
 }
 
 export function CodeBlockActions(
-  { onError, value }: { onError?: (cause: unknown) => void; value: () => string },
+  { children, onError, value }: {
+    children?: ReactNode
+    onError?: (cause: unknown) => void
+    value: () => string
+  },
 ) {
   return (
     <span className='conversation-code-actions' onClick={(event) => event.stopPropagation()}>
+      {children}
       <CopyButton label='Copy code' onError={onError} value={value} />
     </span>
   )

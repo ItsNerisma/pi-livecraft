@@ -81,21 +81,45 @@ pre.conversation-code-block {
   transform: translateY(0);
 }
 .conversation-mermaid {
-  overflow-x: auto;
-  margin: 10px 0;
-  padding: 12px;
+  margin: 8px 0;
   border: 1px solid var(--line);
   border-radius: 9px;
   background: color-mix(in srgb, var(--canvas) 60%, var(--surface));
 }
+.conversation-mermaid-scroll {
+  overflow-x: auto;
+  padding: 10px;
+}
 .conversation-mermaid-diagram {
-  display: flex;
-  justify-content: center;
-  min-width: 0;
+  width: max-content;
+  margin-inline: auto;
+}
+.conversation-mermaid-zoom {
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 26px;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 10px/1 ui-monospace, monospace;
+  transition: color 140ms ease-out;
+}
+.conversation-mermaid-zoom:hover:not(:disabled) {
+  color: var(--accent);
+}
+.conversation-mermaid-zoom:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.conversation-mermaid-zoom:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 /* Mermaid scopes its own rules under the diagram id, so palette overrides need weight. */
 .conversation-mermaid svg {
-  max-width: 100% !important;
+  max-width: none !important;
   height: auto !important;
   background: transparent !important;
 }
@@ -107,6 +131,13 @@ pre.conversation-code-block {
 .conversation-mermaid svg .actor {
   fill: var(--surface-raised) !important;
   stroke: var(--line-strong) !important;
+  filter: none !important;
+}
+/* Mermaid labels are paragraphs: conversation spacing must not inflate them. */
+.conversation-mermaid svg p,
+.conversation-mermaid svg .nodeLabel {
+  margin: 0 !important;
+  line-height: 1.35 !important;
 }
 .conversation-mermaid svg text,
 .conversation-mermaid svg tspan,

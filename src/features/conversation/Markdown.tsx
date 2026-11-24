@@ -152,7 +152,7 @@ export const Markdown = memo(function Markdown(
             const plain = <CopyablePre onError={onError}>{code}</CopyablePre>
             return (
               <Suspense fallback={plain}>
-                <LazyMermaidBlock fallback={plain} source={source} />
+                <LazyMermaidBlock fallback={plain} onError={onError} source={source} />
               </Suspense>
             )
           },
