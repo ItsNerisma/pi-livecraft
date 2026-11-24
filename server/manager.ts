@@ -29,6 +29,7 @@ const host = '127.0.0.1'
 const port = readPort('PI_LIVECRAFT_MANAGER_PORT', 43_120)
 const minimumOpenSessionsPerWorkspace = 3
 const idleReuseAfterMs = readDuration('PI_LIVECRAFT_IDLE_REUSE_AFTER_MS', 3 * 60_000)
+const idleCloseAfterMs = readDuration('PI_LIVECRAFT_IDLE_CLOSE_AFTER_MS', 10 * 60_000)
 const clients = new Set<Socket>()
 const sessions = new Map<string, ManagedSession>()
 const openingSessions = new Map<string, Promise<SessionSummary>>()
@@ -44,6 +45,8 @@ const runtimeIdentity = {
 let shuttingDown = false
 let restartAccepted = false
 let activeRequests = 0
+let idleCleanupTimer: ReturnType<typeof setTimeout> | undefined
+let idleCleanupRunning = false
 
 interface ManagedSession {
   summary: SessionSummary
@@ -88,6 +91,8 @@ process.on('SIGTERM', () => void shutdown(0))
 async function shutdown(exitCode: number): Promise<void> {
   if (shuttingDown) return
   shuttingDown = true
+  if (idleCleanupTimer) clearTimeout(idleCleanupTimer)
+  idleCleanupTimer = undefined
   const serverClosed = server.listening
     ? new Promise<void>((resolve) => server.close(() => resolve()))
     : Promise.resolve()
@@ -192,15 +197,88 @@ function piHasActiveWork(state: JsonObject): boolean {
 function markSessionRunning(session: ManagedSession): void {
   session.summary.status = 'running'
   session.idleSince = undefined
+  scheduleIdleCleanup()
 }
 
 function markSessionIdle(session: ManagedSession, resetIdleSince = false): void {
   session.summary.status = 'idle'
   if (resetIdleSince || session.idleSince === undefined) session.idleSince = Date.now()
+  scheduleIdleCleanup()
 }
 
-function hasBeenIdleLongEnough(session: ManagedSession): boolean {
-  return session.idleSince !== undefined && Date.now() - session.idleSince > idleReuseAfterMs
+function hasBeenIdleLongEnough(
+  session: ManagedSession,
+  durationMs = idleReuseAfterMs,
+): boolean {
+  return session.idleSince !== undefined && Date.now() - session.idleSince >= durationMs
+}
+
+function scheduleIdleCleanup(): void {
+  if (idleCleanupTimer) clearTimeout(idleCleanupTimer)
+  idleCleanupTimer = undefined
+  if (shuttingDown || idleCleanupRunning) return
+
+  const nextExpiry = [...sessions.values()]
+    .filter(isIdleCleanupCandidate)
+    .reduce(
+      (earliest, session) =>
+        Math.min(
+          earliest,
+          (session.idleSince ?? Number.POSITIVE_INFINITY) + idleCloseAfterMs,
+        ),
+      Number.POSITIVE_INFINITY,
+    )
+  if (!Number.isFinite(nextExpiry)) return
+
+  idleCleanupTimer = setTimeout(() => {
+    idleCleanupTimer = undefined
+    void closeExpiredIdleSessions()
+  }, Math.max(0, nextExpiry > Date.now() ? nextExpiry - Date.now() : 30_000))
+  idleCleanupTimer.unref()
+}
+
+function isIdleCleanupCandidate(session: ManagedSession): boolean {
+  return session.summary.status === 'idle'
+    && session.pendingUi.size === 0
+    && session.inFlightRequests === 0
+    && !session.switching
+    && session.idleSince !== undefined
+}
+
+async function closeExpiredIdleSessions(): Promise<void> {
+  if (idleCleanupRunning || shuttingDown) return
+  idleCleanupRunning = true
+  try {
+    for (const session of sessions.values()) {
+      if (!isIdleCleanupCandidate(session) || !hasBeenIdleLongEnough(session, idleCloseAfterMs))
+        continue
+      try {
+        const state = await requestPi(session, { type: 'get_state' }, 5_000)
+        if (shuttingDown) break
+        if (piHasActiveWork(state)) {
+          markSessionRunning(session)
+          continue
+        }
+        if (
+          !isIdleCleanupCandidate(session)
+          || !hasBeenIdleLongEnough(session, idleCloseAfterMs)
+        ) continue
+        session.summary.status = 'exited'
+        broadcast({
+          kind: 'event',
+          event: 'session_exited',
+          sessionId: session.summary.id,
+          data: { reason: 'idle' },
+        })
+        await session.pi.terminate()
+      } catch {
+        // A failed state check is not proof that it is safe to stop Pi.
+      }
+    }
+  } finally {
+    idleCleanupRunning = false
+    scheduleIdleCleanup()
+  }
 }
 
 async function createSession(request: ManagerRequest): Promise<SessionSummary> {

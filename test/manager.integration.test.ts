@@ -373,6 +373,7 @@ test(
         PATH: `${fakePiBin(directory)}${delimiter}${process.env.PATH}`,
         PI_LIVECRAFT_MANAGER_PORT: String(port),
         PI_LIVECRAFT_IDLE_REUSE_AFTER_MS: '0',
+        PI_LIVECRAFT_IDLE_CLOSE_AFTER_MS: '60000',
       },
       stdio: 'ignore',
     })
@@ -508,6 +509,44 @@ test('completes a manual compact without timeout', { timeout: 10_000 }, async ()
     await rm(directory, { force: true, recursive: true })
   }
 })
+
+test(
+  'automatically closes an idle Pi process after its configured timeout',
+  { timeout: 10_000 },
+  async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'pi-manager-'))
+    const port = 45_000 + (process.pid % 10_000)
+    await writeFakePi(directory)
+    const manager = spawn(process.execPath, ['server/manager.ts'], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        PATH: `${fakePiBin(directory)}${delimiter}${process.env.PATH}`,
+        PI_LIVECRAFT_MANAGER_PORT: String(port),
+        PI_LIVECRAFT_IDLE_CLOSE_AFTER_MS: '25',
+      },
+      stdio: 'ignore',
+    })
+    const client = await connectManager(port)
+    try {
+      const opened = await client.request('open', {
+        cwd: process.cwd(),
+        name: 'Idle',
+        sessionPath: join(directory, 'idle.jsonl'),
+      })
+      const exited = client.waitForEvent(
+        (event) => event.event === 'session_exited' && event.sessionId === sessionId(opened),
+      )
+      const event = await exited
+      assert.deepEqual(event.data, { reason: 'idle' })
+      assert.equal(sessionStatus(await client.request('list', {}), sessionId(opened)), 'exited')
+    } finally {
+      client.close()
+      await stopProcess(manager)
+      await rm(directory, { force: true, recursive: true })
+    }
+  },
+)
 
 test('closes a Pi session without deleting its manager summary', { timeout: 10_000 }, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'pi-manager-'))
