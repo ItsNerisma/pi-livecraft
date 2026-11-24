@@ -384,7 +384,6 @@ function App() {
     observedToolDurations,
     pendingSteering,
     plan,
-    planUpdatedDuringTurn,
     refreshSnapshot,
     removeLiveMessage,
     removePendingSteering,
@@ -1242,7 +1241,7 @@ function App() {
                       <PlanPanel
                         key={selectedSession.id}
                         plan={plan}
-                        running={agentTurnRunning && planUpdatedDuringTurn}
+                        running={agentTurnRunning}
                         sessionId={selectedSession.id}
                       />
                     )}
