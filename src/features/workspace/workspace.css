@@ -356,6 +356,70 @@
   transform: none;
 }
 
+/* Workspace filter: a single-line search field that narrows the section list below it. */
+.workspace-search {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 8px;
+  background: var(--surface-raised);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+.workspace-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.workspace-search > svg {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+.workspace-search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12.5px;
+}
+.workspace-search-input:focus {
+  outline: 0;
+}
+.workspace-search-input::placeholder {
+  color: var(--muted);
+}
+.workspace-search-clear {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+.workspace-search-clear:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+.workspace-search-clear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.workspace-search-clear:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
 .session-list {
   display: flex;
   flex-direction: column;
@@ -843,6 +907,8 @@
 @media (prefers-reduced-motion: reduce) {
   .session-context-menu button,
   .session-rename-input,
+  .workspace-search,
+  .workspace-search-clear,
   .workspace-section-toggle,
   .workspace-section-toggle > svg,
   .workspace-section-new,

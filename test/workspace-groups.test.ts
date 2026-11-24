@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { RecentSession, SessionSummary } from '../shared/types.ts'
 import {
+  defaultCollapsedWorkspacePaths,
+  filterWorkspaceGroups,
   sidebarSessionRows,
   workspaceGroups,
   workspaceName,
@@ -151,4 +153,67 @@ test('includes live sessions that have no persisted history and deduplicates per
   ])
   assert.deepEqual(groups[0].sessions.map(({ id }) => id), ['persisted'])
   assert.deepEqual(groups[1].sessions.map(({ id }) => id), ['live-only'])
+})
+
+test('collapses every section beyond the most recent ones on a fresh launch', () => {
+  const groups = workspaceGroups(
+    [
+      session('/first', 'first', 500),
+      session('/second', 'second', 400),
+      session('/third', 'third', 300),
+      session('/fourth', 'fourth', 200),
+      session('/fifth', 'fifth', 100),
+    ],
+    [],
+    [],
+    [],
+  )
+
+  assert.deepEqual([...defaultCollapsedWorkspacePaths(groups)], ['/fourth', '/fifth'])
+  assert.deepEqual([...defaultCollapsedWorkspacePaths(groups, 1)], [
+    '/second',
+    '/third',
+    '/fourth',
+    '/fifth',
+  ])
+  assert.deepEqual(
+    [...defaultCollapsedWorkspacePaths(groups.slice(0, 2))],
+    [],
+    'a short history stays fully unfolded',
+  )
+})
+
+test('filters sections by name or path and ranks name prefixes first', () => {
+  const groups = workspaceGroups(
+    [
+      session('/home/dev/pi-livecraft', 'a', 500),
+      session('/home/dev/pi-livecraft', 'b', 400),
+      session('/home/dev/markdown-notes', 'c', 300),
+      session('/home/dev/livecraft-ui-kit', 'd', 200),
+    ],
+    [],
+    [],
+    [],
+  )
+
+  assert.deepEqual(
+    filterWorkspaceGroups(groups, '  LIVECRAFT ').map(({ name, sessions }) => ({
+      name,
+      sessions: sessions.map(({ id }) => id),
+    })),
+    [
+      { name: 'livecraft-ui-kit', sessions: ['d'] },
+      { name: 'pi-livecraft', sessions: ['a', 'b'] },
+    ],
+    'a name prefix ranks above a name that only contains the query, sessions intact',
+  )
+  assert.deepEqual(filterWorkspaceGroups(groups, 'dev/markdown').map(({ name }) => name), [
+    'markdown-notes',
+  ])
+  assert.deepEqual(
+    filterWorkspaceGroups(groups, '').map(({ path }) => path),
+    groups.map(({ path }) => path),
+    'an empty query keeps every section in order',
+  )
+  assert.deepEqual(filterWorkspaceGroups(groups, 'missing'), [])
 })

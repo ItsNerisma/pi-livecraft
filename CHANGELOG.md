@@ -12,11 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Group sessions into collapsible sections named after their workspace folder, replacing the single main workspace.
 - Create a session in any folder from one `New workspace` dialog that opens the host's native folder dialog, with recent workspaces and typed paths as fallbacks.
 - Add a session to an existing workspace from the `＋` button on its section.
+- Filter the workspace list with a `Search workspaces` field that matches section names and paths, listing prefix matches first.
 
 ### Changed
 
 - The active workspace now follows the selected session instead of being chosen separately; Git, todos, quotas, terminal, prompt templates, and the right sidebar follow it.
 - Startup no longer selects a session automatically: the previous selection is restored when its Pi process is still alive.
+- A fresh browser unfolds only the three most recent workspaces; older sections start collapsed and that layout is kept for later launches.
 
 ### Removed
 

@@ -3,6 +3,8 @@ export const minWorkspaceSidebarWidth = 220
 export const maxWorkspaceSidebarWidth = 480
 /** Sessions a section shows before the user asks for the rest of its history. */
 export const visibleWorkspaceSessionCount = 4
+/** Sections a fresh browser unfolds; the older ones start collapsed. */
+export const defaultExpandedWorkspaceSectionCount = 3
 
 export function clampWorkspaceSidebarWidth(width: number): number {
   if (!Number.isFinite(width)) return defaultWorkspaceSidebarWidth

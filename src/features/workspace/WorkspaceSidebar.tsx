@@ -14,6 +14,7 @@ import { SessionStatusIndicator } from './SessionStatusIndicator.tsx'
 import type { SessionActionTarget } from './sidebar-sessions.ts'
 import { SessionRenameDialog } from './SessionRenameDialog.tsx'
 import type { WorkspaceGroup } from './workspace-groups.ts'
+import { filterWorkspaceGroups } from './workspace-groups.ts'
 import {
   maxWorkspaceSidebarWidth,
   minWorkspaceSidebarWidth,
@@ -75,6 +76,7 @@ export function WorkspaceSidebar({
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [contextMenuPosition, setContextMenuPosition] = useState({ left: 0, top: 0 })
   const [renameTarget, setRenameTarget] = useState<SessionActionTarget | null>(null)
+  const [query, setQuery] = useState('')
   const [expandedWorkspacePaths, setExpandedWorkspacePaths] = useState<ReadonlySet<string>>(
     () => new Set(),
   )
@@ -267,6 +269,9 @@ export function WorkspaceSidebar({
   }
 
   const contextMenuSessionPath = contextMenu?.target.sessionPath
+  // Searching only narrows the list: a match keeps its collapse state and its small mode.
+  const filtering = query.trim().length > 0
+  const visibleGroups = filterWorkspaceGroups(groups, query)
 
   return (
     <aside
@@ -329,11 +334,41 @@ export function WorkspaceSidebar({
       <button className='new-session' onClick={onNewSession} type='button'>
         ＋ New workspace
       </button>
+      {groups.length > 0 && (
+        <div className='workspace-search' role='search'>
+          <SearchIcon />
+          <input
+            aria-label='Search workspaces'
+            className='workspace-search-input'
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Escape' || !query) return
+              event.preventDefault()
+              setQuery('')
+            }}
+            placeholder='Search workspaces'
+            type='text'
+            value={query}
+          />
+          {query && (
+            <Tooltip label='Clear search'>
+              <button
+                aria-label='Clear workspace search'
+                className='workspace-search-clear'
+                onClick={() => setQuery('')}
+                type='button'
+              >
+                ✕
+              </button>
+            </Tooltip>
+          )}
+        </div>
+      )}
       <nav className='workspace-sections' aria-label='Workspaces and their Pi sessions'>
         {isRefreshing && groups.length === 0 && (
           <p className='session-list-loading' role='status'>Loading sessions…</p>
         )}
-        {groups.map((group, index) => {
+        {visibleGroups.map((group, index) => {
           const groupCollapsed = collapsedWorkspacePaths.has(group.path)
           const expanded = expandedWorkspacePaths.has(group.path)
           const hiddenSessionCount = group.sessions.length - visibleWorkspaceSessionCount
@@ -443,6 +478,11 @@ export function WorkspaceSidebar({
             No workspaces yet. Start a session to open one.
           </p>
         )}
+        {filtering && visibleGroups.length === 0 && (
+          <p className='empty-sidebar' role='status'>
+            No workspace matches “{query.trim()}”.
+          </p>
+        )}
       </nav>
       {contextMenu && (
         <div
@@ -494,6 +534,25 @@ function SidebarToggleIcon({ collapsed }: { collapsed: boolean }) {
     >
       <path d='M3 3v18' />
       <path d={collapsed ? 'm9 6 6 6-6 6' : 'm15 6-6 6 6 6'} />
+    </svg>
+  )
+}
+
+function SearchIcon() {
+  return (
+    <svg
+      aria-hidden='true'
+      fill='none'
+      height='14'
+      stroke='currentColor'
+      strokeLinecap='round'
+      strokeLinejoin='round'
+      strokeWidth='1.75'
+      viewBox='0 0 24 24'
+      width='14'
+    >
+      <circle cx='11' cy='11' r='7' />
+      <path d='m20 20-3.5-3.5' />
     </svg>
   )
 }

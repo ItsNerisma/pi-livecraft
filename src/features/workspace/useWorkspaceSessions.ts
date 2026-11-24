@@ -11,7 +11,7 @@ import {
 import type { JsonObject, RecentSession, SessionSummary } from '../../../shared/types.ts'
 import { promptSessionTitle } from '../composer/prompt-title.ts'
 import { nextActiveSessionId, type SessionActionTarget } from './sidebar-sessions.ts'
-import { workspaceGroups } from './workspace-groups.ts'
+import { defaultCollapsedWorkspacePaths, workspaceGroups } from './workspace-groups.ts'
 
 interface WorkspaceSessionsOptions {
   onDraftMessage: (sessionId: string, message: string) => void
@@ -57,6 +57,11 @@ export function useWorkspaceSessions(
   const [collapsedWorkspacePaths, setCollapsedWorkspacePaths] = useState<ReadonlySet<string>>(
     readCollapsedWorkspacePaths,
   )
+  /**
+   * Whether the browser already holds a collapsed layout. An empty layout is stored
+   * explicitly, so a missing entry means the first launch of this browser.
+   */
+  const collapsedLayoutSeededRef = useRef(hasPersistedCollapsedLayout())
   const [activeWorkspacePath, setActiveWorkspacePath] = useState(
     () => window.localStorage.getItem(ACTIVE_WORKSPACE_KEY) ?? '',
   )
@@ -115,6 +120,14 @@ export function useWorkspaceSessions(
     notifiedWorkspacePathRef.current = workspacePath
   }, [onWorkspaceSelected, workspacePath])
 
+  // The first launch unfolds only the most recent workspaces, in the default small mode, so
+  // an accumulated history stays scannable. Later launches keep the layout the user left.
+  useEffect(() => {
+    if (collapsedLayoutSeededRef.current || groups.length === 0) return
+    collapsedLayoutSeededRef.current = true
+    setCollapsedWorkspacePaths(defaultCollapsedWorkspacePaths(groups))
+  }, [groups])
+
   // A session selected from anywhere reveals its section. Only a selection change
   // reopens it, so collapsing the current section survives later refreshes. A session
   // just created in a section does not reopen it: that section stays as the user left it.
@@ -132,7 +145,10 @@ export function useWorkspaceSessions(
 
   useEffect(() => writeCompletedSessionIds(completedSessionIds), [completedSessionIds])
   useEffect(() => writeWorkspacePaths(workspacePaths), [workspacePaths])
-  useEffect(() => writeCollapsedWorkspaces(collapsedWorkspacePaths), [collapsedWorkspacePaths])
+  // Writing before the first seed would record an unfolded layout the user never chose.
+  useEffect(() => {
+    if (collapsedLayoutSeededRef.current) writeCollapsedWorkspaces(collapsedWorkspacePaths)
+  }, [collapsedWorkspacePaths])
 
   /** Reloads every workspace section while discarding responses superseded by a newer refresh. */
   const refreshSessions = useCallback(async () => {
@@ -508,10 +524,18 @@ function readCollapsedWorkspacePaths(): ReadonlySet<string> {
   return readStringSet(COLLAPSED_WORKSPACES_KEY)
 }
 
+/** Reports whether a collapsed layout was already stored, including an all-unfolded one. */
+function hasPersistedCollapsedLayout(): boolean {
+  try {
+    return window.localStorage.getItem(COLLAPSED_WORKSPACES_KEY) !== null
+  } catch {
+    return false
+  }
+}
+
 function writeCollapsedWorkspaces(paths: ReadonlySet<string>): void {
   try {
-    if (paths.size === 0) window.localStorage.removeItem(COLLAPSED_WORKSPACES_KEY)
-    else window.localStorage.setItem(COLLAPSED_WORKSPACES_KEY, JSON.stringify([...paths]))
+    window.localStorage.setItem(COLLAPSED_WORKSPACES_KEY, JSON.stringify([...paths]))
   } catch {
     // localStorage may be unavailable
   }

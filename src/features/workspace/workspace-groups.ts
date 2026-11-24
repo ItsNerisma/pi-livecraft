@@ -1,4 +1,5 @@
 import type { RecentSession, SessionSummary } from '../../../shared/types.ts'
+import { defaultExpandedWorkspaceSectionCount } from './workspace-sidebar.ts'
 
 /** One collapsible workspace section of the session sidebar. */
 export interface WorkspaceGroup {
@@ -41,6 +42,42 @@ export function workspaceGroups(
       }
     })
     .sort((left, right) => right.latestActivity - left.latestActivity)
+}
+
+/**
+ * Paths a fresh browser starts with collapsed: every section except the most recent ones,
+ * so an accumulated history stays scannable instead of unfolding every workspace.
+ */
+export function defaultCollapsedWorkspacePaths(
+  groups: readonly WorkspaceGroup[],
+  expandedCount: number = defaultExpandedWorkspaceSectionCount,
+): ReadonlySet<string> {
+  return new Set(groups.slice(expandedCount).map((group) => group.path))
+}
+
+/**
+ * Sections whose name or path contains the query, case-insensitively, with the sections
+ * whose name starts with it first. Each match keeps its own collapse state and sessions;
+ * an empty query keeps every section in its current order.
+ */
+export function filterWorkspaceGroups(
+  groups: readonly WorkspaceGroup[],
+  query: string,
+): WorkspaceGroup[] {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return [...groups]
+  const matches = groups.filter((group) =>
+    group.name.toLowerCase().includes(needle) || group.path.toLowerCase().includes(needle)
+  )
+  // Sections are ordered by activity, and a stable sort keeps that order inside each group:
+  // a name that starts with the query ranks above one that merely contains it.
+  return matches.sort(
+    (left, right) => matchRank(left, needle) - matchRank(right, needle),
+  )
+}
+
+function matchRank(group: WorkspaceGroup, needle: string): number {
+  return group.name.toLowerCase().startsWith(needle) ? 0 : 1
 }
 
 /**
