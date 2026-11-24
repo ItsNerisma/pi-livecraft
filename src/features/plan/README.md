@@ -24,10 +24,10 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 ## States
 
 - `active` — at least one step is pending or in progress; the header shows progress and the current step.
-- `complete` — every step is `completed` or `skipped`; the header reads "All steps done". Pi is still writing the answer that finishes the turn, so the panel leaves as soon as the session is no longer running: a finished plan is only tracked while the agent works, and the conversation's `update_plan` card remains the record.
-- `paused` — Pi is not running and the plan is unfinished; the header carries a `paused` note instead of pretending the step is moving. The settle reminder above keeps this state for interrupted runs and for work Pi stopped short of on purpose, not for a plan it forgot to close.
+- `complete` — every step is `completed` or `skipped`; the header reads "All steps done". While Pi writes the answer, the panel stays above the composer; when the turn settles, the same panel moves into the conversation immediately before its turn-usage row.
+- A settled unfinished plan is also moved into the conversation and marked `paused`; the conversation's `update_plan` card remains the durable record in either case.
 
-`App.tsx` owns that visibility rule, because it is the only place that knows whether the session is running. `PlanPanel.tsx` owns folding: it stores the identity of the folded plan (`planIdentity()`, the step texts) in `localStorage`, so a status change keeps the panel folded and a different plan reopens once. The panel takes the width of the conversation's message column, not the wider composer, and keeps the same gap above and below.
+`App.tsx` chooses the live composer surface while the session runs. `Conversation.tsx` places a settled plan before the final turn-usage row. `PlanPanel.tsx` owns folding: it stores the identity of the folded plan (`planIdentity()`, the step texts) in `localStorage`, so status changes keep the panel folded and a different plan reopens once. The panel takes the width of the conversation's message column, not the wider composer, and keeps the same gap above and below.
 
 ## Timing
 

@@ -1180,6 +1180,8 @@ function App() {
                     repositoryRoot={gitSnapshot?.root}
                     scrollToBottomRequest={scrollToBottomRequest}
                     workingDirectory={selectedSession.cwd}
+                    settledPlan={selectedSession.status === 'running' ? undefined : plan}
+                    sessionId={selectedSession.id}
                     toolDurations={observedToolDurations}
                     toolExecutions={toolExecutions}
                   />

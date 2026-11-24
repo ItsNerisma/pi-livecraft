@@ -26,6 +26,8 @@ import { UserMessageRail } from './UserMessageRail.tsx'
 import { isVisibleConversationMessage } from './message-display.ts'
 import { ToolCallCard } from './ToolCallCard.tsx'
 import { userMessageAnchors, type UserMessageAnchor } from './user-message-anchors.ts'
+import { PlanPanel } from '../plan/PlanPanel.tsx'
+import type { PlanState } from '../plan/plan-state.ts'
 import {
   conversationHistoryStart,
   resumesAutoScrollAfterDownwardScroll,
@@ -51,6 +53,8 @@ export function Conversation(
     pendingSteering,
     repositoryRoot,
     scrollToBottomRequest,
+    settledPlan,
+    sessionId,
     toolDurations,
     toolExecutions,
     workingDirectory,
@@ -66,6 +70,8 @@ export function Conversation(
     pendingSteering: string[]
     repositoryRoot?: string | null
     scrollToBottomRequest: number
+    settledPlan?: PlanState
+    sessionId: string
     toolDurations: ReadonlyMap<string, number>
     toolExecutions: ToolExecution[]
     workingDirectory: string
@@ -119,6 +125,7 @@ export function Conversation(
     },
     [allMessages, resolvedCallIds],
   )
+  const latestUsageIndex = Math.max(-1, ...usagesByMessage.keys())
   const liveToolCallIds = useMemo(
     () =>
       new Set(
@@ -403,6 +410,14 @@ export function Conversation(
                       />
                     )
                   })}
+                  {settledPlan && index === latestUsageIndex && usage && (
+                    <PlanPanel
+                      key={sessionId}
+                      plan={settledPlan}
+                      running={false}
+                      sessionId={sessionId}
+                    />
+                  )}
                   {usage && <TurnUsage turnNumber={turnNumbers.get(index)} usage={usage} />}
                 </div>
               )
