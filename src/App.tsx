@@ -1232,13 +1232,12 @@ function App() {
                     </div>
                   </div>
                   <div className='composer-area'>
-                    {/* A finished plan stops tracking as soon as Pi settles its turn. */}
-                    {plan && (agentBusy[selectedSession.id] || !plan.complete) && (
+                    {/* Keep the plan in the composer only while Pi is running; the tool call stays in history. */}
+                    {plan && selectedSession.status === 'running' && (
                       <PlanPanel
                         key={selectedSession.id}
                         plan={plan}
-                        running={agentBusy[selectedSession.id]
-                          ?? selectedSession.status === 'running'}
+                        running
                         sessionId={selectedSession.id}
                       />
                     )}
