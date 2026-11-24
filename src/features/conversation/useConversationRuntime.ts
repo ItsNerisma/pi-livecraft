@@ -155,7 +155,11 @@ export function useConversationRuntime(
           snapshotSessionIdRef.current = sessionId
           setSnapshot(nextSnapshot)
           setSnapshotSessionId(sessionId)
-          setPlan(planFromDisplayedConversation(nextSnapshot.messages, liveMessagesRef.current))
+          const refreshedPlan = planFromDisplayedConversation(
+            nextSnapshot.messages,
+            liveMessagesRef.current,
+          )
+          if (refreshedPlan) setPlan(refreshedPlan)
           const latestLiveSequence = nextSnapshot.liveEvents.at(-1)?.sequence ?? 0
           if (latestLiveSequence > appliedPiEventSequenceRef.current) {
             clearLiveMessages()

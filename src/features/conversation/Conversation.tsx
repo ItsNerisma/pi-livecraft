@@ -27,7 +27,7 @@ import { isVisibleConversationMessage } from './message-display.ts'
 import { ToolCallCard } from './ToolCallCard.tsx'
 import { userMessageAnchors, type UserMessageAnchor } from './user-message-anchors.ts'
 import { PlanPanel } from '../plan/PlanPanel.tsx'
-import { plansByTurnUsage, type PlanState } from '../plan/plan-state.ts'
+import { mergePlanHistory, plansByTurnUsage, type PlanState } from '../plan/plan-state.ts'
 import {
   conversationHistoryStart,
   resumesAutoScrollAfterDownwardScroll,
@@ -84,6 +84,16 @@ export function Conversation(
   const showToolCalls = conversationView !== 'simple'
   const semiDetailed = conversationView === 'semi-detailed'
   const allMessages = messages
+  const messageEntries = useMemo(() => conversationMessageEntries(allMessages, liveMessages), [
+    allMessages,
+    liveMessages,
+  ])
+  const lastUserEntry = [...messageEntries].reverse().find(({ message }) => message.role === 'user')
+  const lastUserHistoryIndex = lastUserEntry?.source === 'history'
+    ? lastUserEntry.historyIndex
+    : lastUserEntry
+    ? allMessages.length
+    : -1
   const { visibleMessages, toolCallIds, resultsByCallId } = useMemo(
     () => {
       const visible = allMessages.filter(isVisibleConversationMessage)
@@ -128,10 +138,22 @@ export function Conversation(
     [allMessages, resolvedCallIds],
   )
   const latestUsageIndex = Math.max(-1, ...usagesByMessage.keys())
+  const currentTurnUsageIndex = Math.max(
+    -1,
+    ...[...usagesByMessage.keys()].filter((index) => index > lastUserHistoryIndex),
+  )
   const plansByUsageIndex = useMemo(
     () => plansByTurnUsage(allMessages, new Set(usagesByMessage.keys())),
     [allMessages, usagesByMessage],
   )
+  const [retainedPlans, setRetainedPlans] = useState(() => plansByUsageIndex)
+  const visiblePlans = useMemo(
+    () => mergePlanHistory(retainedPlans, plansByUsageIndex),
+    [plansByUsageIndex, retainedPlans],
+  )
+  useEffect(() => {
+    setRetainedPlans((current) => mergePlanHistory(current, plansByUsageIndex))
+  }, [plansByUsageIndex])
   const liveToolCallIds = useMemo(
     () =>
       new Set(
@@ -141,10 +163,6 @@ export function Conversation(
       ),
     [liveMessages],
   )
-  const messageEntries = useMemo(() => conversationMessageEntries(allMessages, liveMessages), [
-    allMessages,
-    liveMessages,
-  ])
   const railAnchors = useMemo(() => userMessageAnchors(messageEntries), [messageEntries])
   const initialHistoryStart = useMemo(
     () => conversationHistoryStart(allMessages, allMessages.length),
@@ -378,7 +396,7 @@ export function Conversation(
               const index = entry.historyIndex
               const calls = showToolCalls ? toolCallsInMessage(message) : []
               const usage = usagesByMessage.get(index)
-              const planForTurn = plansByUsageIndex.get(index)
+              const planForTurn = visiblePlans.get(index)
                 ?? (index === latestUsageIndex ? settledPlan : undefined)
               if (!isVisibleConversationMessage(message) && calls.length === 0) return null
               return (
@@ -418,7 +436,7 @@ export function Conversation(
                       />
                     )
                   })}
-                  {planForTurn && !(agentTurnRunning && index === latestUsageIndex) && usage && (
+                  {planForTurn && !(agentTurnRunning && index === currentTurnUsageIndex) && (
                     <PlanPanel
                       key={`${sessionId}:${index}`}
                       plan={planForTurn}

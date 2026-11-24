@@ -88,6 +88,21 @@ export function plansByTurnUsage(
   return plans
 }
 
+/** Keeps known historical plans when an automatic snapshot temporarily omits their payload. */
+export function mergePlanHistory(
+  known: ReadonlyMap<number, PlanState>,
+  refreshed: ReadonlyMap<number, PlanState>,
+): ReadonlyMap<number, PlanState> {
+  let changed = false
+  const merged = new Map(known)
+  for (const [index, plan] of refreshed) {
+    if (merged.get(index) === plan) continue
+    merged.set(index, plan)
+    changed = true
+  }
+  return changed ? merged : known
+}
+
 /**
  * Reads the last accepted plan from the displayed conversation: the snapshot merged with the
  * optimistic turns still live in the interface. A refresh whose snapshot predates a just-sent

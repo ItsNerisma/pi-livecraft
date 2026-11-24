@@ -19,7 +19,7 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 
 - **Opening or reloading a session:** `planFromMessages()` in `plan-state.ts` reads the latest plan for the active task. `plansByTurnUsage()` also reconstructs each historical turn's last accepted plan from persisted tool results, so prior panels survive new user messages, compaction, and reopening.
 - **While Pi works:** `useConversationRuntime` reads the same payload from `tool_execution_end` and updates the panel immediately.
-- **Starting a new turn:** the runtime clears the live plan when the composer adds an optimistic user message, and `planFromMessages()` ignores plans older than the last user message. `Conversation.tsx` independently rebuilds settled plan panels per turn from persisted tool results, so a new task hides the live panel without removing earlier panels.
+- **Starting a new turn:** the runtime clears the live plan when the composer adds an optimistic user message, and `planFromMessages()` ignores plans older than the last user message. `Conversation.tsx` independently rebuilds settled plan panels per turn from persisted tool results, retaining the last known panels if an automatic snapshot temporarily omits their messages. A new task hides the live panel without removing earlier panels.
 
 ## States
 
@@ -36,6 +36,7 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 - the header always shows the plan total, including `0s` before the first second; each row shows its step's time once the step has started, `0s` included — a step not yet started shows none;
 - between updates the panel runs the timer locally, and each payload raises the known time to the authoritative value;
 - a snapshot refresh can resend a payload older than time the panel already folded, so the panel keeps the larger value until Pi reports more;
+- historical panels use their turn's persisted timing payload and remain visible through incomplete automatic snapshots;
 - replacing a step with different text starts a new step, so the old time goes with it;
 - a plan that shares no step with the previous one — or that starts with no finished step after a completed one — starts a fresh total, so a new task never inherits the previous clock;
 - a reload resumes the timer instead of restarting it: the first run of a mounted panel starts at the later of the payload's `recordedAt` and the stored `savedAt` instant, so the window a restored timing already covers is never counted twice;

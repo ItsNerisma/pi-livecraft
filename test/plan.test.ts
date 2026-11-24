@@ -25,6 +25,7 @@ import {
   planFromDisplayedConversation,
   planFromMessages,
   plansByTurnUsage,
+  mergePlanHistory,
   planIdentity,
   planRunBase,
   planState,
@@ -230,6 +231,13 @@ test('keeps each turn plan associated with its own final usage row', () => {
   assert.equal(plans.size, 2)
   assert.equal(plans.get(3)?.plan.steps[0]?.text, 'Revised task A')
   assert.equal(plans.get(6)?.plan.steps[0]?.text, 'Second task A')
+})
+
+test('retains known historical plans when a refresh omits their payload', () => {
+  const knownPlan = planState(planOf(...stepList('completed', 'completed')))
+  const history = new Map([[4, knownPlan]])
+
+  assert.equal(mergePlanHistory(history, new Map()), history)
 })
 
 test('a snapshot that lags a sent message cannot resurrect the plan it ended', () => {
