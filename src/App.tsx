@@ -1239,10 +1239,10 @@ function App() {
                     </div>
                   </div>
                   <div className='composer-area'>
-                    {/* Completed plans stay here until Pi settles and returns control. */}
+                    {/* A completed plan moves into the conversation; only live steps stay here. */}
                     {plan && !plan.complete && (
                       <PlanPanel
-                        key={selectedSession.id}
+                        key={`plan:${selectedSession.id}`}
                         plan={plan}
                         running={agentTurnRunning}
                         sessionId={selectedSession.id}
