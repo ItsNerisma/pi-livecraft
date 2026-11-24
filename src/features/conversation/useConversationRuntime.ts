@@ -6,6 +6,7 @@ import {
 } from '../../../shared/assistant-message-stream.ts'
 import { isObject } from '../../../shared/is-object.ts'
 import type { JsonObject, SessionSnapshot } from '../../../shared/types.ts'
+import { agentTurnFromSnapshot, piSessionBusy } from './agent-turn.ts'
 import { activityForPiEvent, type Activity } from './activity.ts'
 import { advanceEventSequence } from './event-sequence.ts'
 import { conversationMessageEntries, type LiveMessage } from './message-reconciliation.ts'
@@ -73,6 +74,8 @@ export function useConversationRuntime(
   const toolStartedAtRef = useRef(new Map<string, number>())
   const requestStartedAtRef = useRef<number | undefined>(undefined)
   const queueUpdateVersionRef = useRef(0)
+  /** Instant the newest agent lifecycle event was applied; 0 before any event this session view. */
+  const agentEventAppliedAtRef = useRef(0)
   const liveMessagesRef = useRef<LiveMessage[]>([])
   const liveMessageIndexRef = useRef(-1)
   const pendingLiveMessagesRef = useRef<LiveMessage[] | undefined>(undefined)
@@ -146,6 +149,7 @@ export function useConversationRuntime(
         delayNextRefresh = true
         request.needsRefresh = false
         const version = ++snapshotRefreshVersionRef.current
+        const fetchedAt = performance.now()
         try {
           nextSnapshot = await getSnapshot(sessionId)
           if (request.cancelled) return nextSnapshot
@@ -163,6 +167,14 @@ export function useConversationRuntime(
           const refreshedPlan = planFromMessages(displayedMessages)
           if (refreshedPlan || displayedMessages.at(-1)?.role === 'user')
             setPlan(refreshedPlan)
+          // Events lost while the backend or manager was down are never replayed, so a snapshot
+          // fetched after the newest applied agent event is the only witness of a missed settle.
+          const agentTurn = agentTurnFromSnapshot(
+            piSessionBusy(nextSnapshot.state),
+            agentEventAppliedAtRef.current,
+            fetchedAt,
+          )
+          if (agentTurn !== undefined) setAgentTurnRunning(agentTurn)
           const latestLiveSequence = nextSnapshot.liveEvents.at(-1)?.sequence ?? 0
           if (latestLiveSequence > appliedPiEventSequenceRef.current) {
             clearLiveMessages()
@@ -215,6 +227,7 @@ export function useConversationRuntime(
       }
       if (event.type === 'agent_start') {
         setAgentTurnRunning(true)
+        agentEventAppliedAtRef.current = performance.now()
         requestStartedAtRef.current = performance.now()
       }
       const streamedToolCall = toolCallInUpdate(event)
@@ -304,6 +317,7 @@ export function useConversationRuntime(
         : undefined
       if (event.type === 'agent_settled') {
         setAgentTurnRunning(false)
+        agentEventAppliedAtRef.current = performance.now()
         requestStartedAtRef.current = undefined
       }
       if (event.type === 'message_end' || event.type === 'agent_settled') {
@@ -332,6 +346,7 @@ export function useConversationRuntime(
     queueUpdateVersionRef.current += 1
     setActivity(null)
     setAgentTurnRunning(false)
+    agentEventAppliedAtRef.current = 0
     setPlan(undefined)
     setToolExecutions([])
     setObservedToolDurations(new Map())

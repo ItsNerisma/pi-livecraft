@@ -721,6 +721,9 @@ function App() {
         managerEvent.event === 'manager_connected' || managerEvent.event === 'session_created'
         || managerEvent.event === 'session_exited' || managerEvent.event === 'session_reassigned'
       ) void refreshSessions()
+      // A reconnect follows a gap in which Pi events were never delivered, so re-read the selected
+      // session and let the runtime reconcile the agent turn from Pi's own state.
+      if (managerEvent.event === 'manager_connected') void refreshSnapshot(selectedIdRef.current)
       if (managerEvent.event === 'pi' && isObject(managerEvent.data))
         handleManagerPiEvent(
           managerEvent.sessionId,
@@ -737,6 +740,7 @@ function App() {
     clearManagerUnavailableToasts,
     handleManagerPiEvent,
     refreshSessions,
+    refreshSnapshot,
     resetEventSequence,
     showToast,
   ])

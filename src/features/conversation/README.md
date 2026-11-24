@@ -1,6 +1,6 @@
 # Conversation
 
-`useConversationRuntime` owns state for the selected Pi conversation: snapshots, streamed messages, steering queue reconciliation, activity, tool execution updates, observed durations, event sequences, replay of snapshot `liveEvents`, and the committed plan read from `update_plan` results (see [plan](/src/features/plan/README.md)). It rejects stale snapshot responses and batches assistant deltas with `requestAnimationFrame`.
+`useConversationRuntime` owns state for the selected Pi conversation: snapshots, streamed messages, steering queue reconciliation, activity, tool execution updates, observed durations, event sequences, replay of snapshot `liveEvents`, and the committed plan read from `update_plan` results (see [plan](/src/features/plan/README.md)). It rejects stale snapshot responses and batches assistant deltas with `requestAnimationFrame`. A missed `agent_settled` (backend or manager down for a moment) would otherwise keep the turn stuck as running, so snapshots fetched after the newest applied agent event also reconcile that turn from Pi's state; `agent-turn.ts` reads and gates that adoption.
 
 `App.tsx` keeps only cross-feature Pi effects such as session status, dialogs, Git refreshes, quotas, and notifications. Live and replayed events pass through that orchestration before reaching the runtime so their ordering and sequence deduplication remain consistent.
 
@@ -10,7 +10,8 @@ Pure protocol, reconciliation, and display rules stay separate:
 - `message-reconciliation.ts` merges history with live messages;
 - `message-display.ts` identifies protocol content visible in the thread and extracts its text;
 - `tool-presentation.ts` and `tool-call-presentations/` describe tool-specific display;
-- `event-sequence.ts` accepts new sequence numbers and rejects duplicates.
+- `event-sequence.ts` accepts new sequence numbers and rejects duplicates;
+- `agent-turn.ts` reads Pi's reported session activity and gates adopting it from a snapshot.
 
 Presentation follows the same ownership boundaries:
 
