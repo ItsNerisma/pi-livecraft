@@ -1,4 +1,5 @@
 import {
+  Fragment,
   startTransition,
   useCallback,
   useEffect,
@@ -27,7 +28,12 @@ import { isVisibleConversationMessage } from './message-display.ts'
 import { ToolCallCard } from './ToolCallCard.tsx'
 import { userMessageAnchors, type UserMessageAnchor } from './user-message-anchors.ts'
 import { PlanPanel } from '../plan/PlanPanel.tsx'
-import { mergePlanHistory, plansByTurnUsage, type PlanState } from '../plan/plan-state.ts'
+import {
+  completedPlanFromToolResult,
+  mergePlanHistory,
+  plansByTurnUsage,
+  type PlanState,
+} from '../plan/plan-state.ts'
 import {
   conversationHistoryStart,
   resumesAutoScrollAfterDownwardScroll,
@@ -54,7 +60,6 @@ export function Conversation(
     pendingSteering,
     repositoryRoot,
     scrollToBottomRequest,
-    settledPlan,
     sessionId,
     toolDurations,
     toolExecutions,
@@ -72,7 +77,6 @@ export function Conversation(
     pendingSteering: string[]
     repositoryRoot?: string | null
     scrollToBottomRequest: number
-    settledPlan?: PlanState
     sessionId: string
     toolDurations: ReadonlyMap<string, number>
     toolExecutions: ToolExecution[]
@@ -114,6 +118,26 @@ export function Conversation(
     () => new Map(toolExecutions.map((execution) => [execution.id, execution])),
     [toolExecutions],
   )
+  const completedPlansByCallId = useMemo(() => {
+    const plans = new Map<string, PlanState>()
+    for (const { message } of messageEntries) {
+      for (const call of toolCallsInMessage(message)) {
+        const result = resultsByCallId.get(call.id) ?? executionsByCallId.get(call.id)?.result
+        const plan = completedPlanFromToolResult(result)
+        if (plan) plans.set(call.id, plan)
+      }
+    }
+    for (const execution of toolExecutions) {
+      if (plans.has(execution.id)) continue
+      const plan = completedPlanFromToolResult(execution.result)
+      if (plan) plans.set(execution.id, plan)
+    }
+    return plans
+  }, [executionsByCallId, messageEntries, resultsByCallId, toolExecutions])
+  const completedPlanPayloads = useMemo(
+    () => new Set([...completedPlansByCallId.values()].map(({ plan }) => JSON.stringify(plan))),
+    [completedPlansByCallId],
+  )
   /** Call IDs whose result has arrived, either from history or a live tool_execution_end. */
   const resolvedCallIds = useMemo(
     () =>
@@ -137,7 +161,6 @@ export function Conversation(
     },
     [allMessages, resolvedCallIds],
   )
-  const latestUsageIndex = Math.max(-1, ...usagesByMessage.keys())
   const currentTurnUsageIndex = Math.max(
     -1,
     ...[...usagesByMessage.keys()].filter((index) => index > lastUserHistoryIndex),
@@ -394,10 +417,14 @@ export function Conversation(
             const { message } = entry
             if (entry.source === 'history') {
               const index = entry.historyIndex
-              const calls = showToolCalls ? toolCallsInMessage(message) : []
+              const calls = toolCallsInMessage(message).filter((call) =>
+                showToolCalls || completedPlansByCallId.has(call.id)
+              )
               const usage = usagesByMessage.get(index)
               const planForTurn = visiblePlans.get(index)
-                ?? (index === latestUsageIndex ? settledPlan : undefined)
+              const planKey = planForTurn ? JSON.stringify(planForTurn.plan) : undefined
+              const planAlreadyFollowsCall = planKey !== undefined
+                && completedPlanPayloads.has(planKey)
               if (!isVisibleConversationMessage(message) && calls.length === 0) return null
               return (
                 <div
@@ -413,30 +440,44 @@ export function Conversation(
                   {calls.map((call) => {
                     const execution = executionsByCallId.get(call.id)
                     const result = resultsByCallId.get(call.id) ?? execution?.result
+                    const completedPlan = completedPlansByCallId.get(call.id)
                     return (
-                      <ToolCallCard
-                        args={call.args}
-                        hasResult={result !== undefined}
-                        semiDetailed={semiDetailed}
-                        id={call.id}
-                        durationMs={toolDurations.get(call.id)}
-                        interrupted={execution?.status === 'interrupted'}
-                        key={call.id}
-                        name={call.name}
-                        onError={onError}
-                        partialResultContent={execution?.partialResult?.content}
-                        repositoryRoot={repositoryRoot}
-                        resultContent={result?.content}
-                        workingDirectory={workingDirectory}
-                        resultDetails={result?.details}
-                        resultError={result?.isError}
-                        streaming={execution?.status === 'generating'}
-                        streamingArguments={execution?.rawArguments}
-                        targeted={highlightedTarget === `tool:${call.id}`}
-                      />
+                      <Fragment key={call.id}>
+                        {showToolCalls && (
+                          <ToolCallCard
+                            args={call.args}
+                            hasResult={result !== undefined}
+                            semiDetailed={semiDetailed}
+                            id={call.id}
+                            durationMs={toolDurations.get(call.id)}
+                            interrupted={execution?.status === 'interrupted'}
+                            name={call.name}
+                            onError={onError}
+                            partialResultContent={execution?.partialResult?.content}
+                            repositoryRoot={repositoryRoot}
+                            resultContent={result?.content}
+                            workingDirectory={workingDirectory}
+                            resultDetails={result?.details}
+                            resultError={result?.isError}
+                            streaming={execution?.status === 'generating'}
+                            streamingArguments={execution?.rawArguments}
+                            targeted={highlightedTarget === `tool:${call.id}`}
+                          />
+                        )}
+                        {completedPlan && (
+                          <PlanPanel
+                            key={`plan:${call.id}`}
+                            plan={completedPlan}
+                            running={false}
+                            sessionId={sessionId}
+                            placement='conversation'
+                          />
+                        )}
+                      </Fragment>
                     )
                   })}
-                  {planForTurn && !(agentTurnRunning && index === currentTurnUsageIndex) && (
+                  {planForTurn && !planAlreadyFollowsCall
+                    && !(agentTurnRunning && index === currentTurnUsageIndex) && (
                     <PlanPanel
                       key={`${sessionId}:${index}`}
                       plan={planForTurn}
@@ -451,10 +492,11 @@ export function Conversation(
             }
 
             const parts = assistantTurnParts(message)
-            const calls = showToolCalls
-              ? parts.flatMap((part) => part.kind === 'tool' ? [part.call] : [])
-              : []
-            if (!isVisibleConversationMessage(message) && calls.length === 0) return null
+            const calls = parts.flatMap((part) => part.kind === 'tool' ? [part.call] : [])
+            const renderableCalls = calls.filter((call) =>
+              showToolCalls || completedPlansByCallId.has(call.id)
+            )
+            if (!isVisibleConversationMessage(message) && renderableCalls.length === 0) return null
             return (
               <div
                 className={`conversation-entry${
@@ -475,65 +517,94 @@ export function Conversation(
                         />
                       )
                       : null
-                  if (!showToolCalls) return null
                   const execution = executionsByCallId.get(part.call.id)
                   const result = execution?.result
+                  const completedPlan = completedPlansByCallId.get(part.call.id)
+                  if (!showToolCalls && !completedPlan) return null
                   return (
-                    <ToolCallCard
-                      animateLiveChanges
-                      args={part.call.args}
-                      hasResult={result !== undefined}
-                      semiDetailed={semiDetailed}
-                      id={part.call.id}
-                      durationMs={toolDurations.get(part.call.id)}
-                      interrupted={execution?.status === 'interrupted'}
-                      key={part.call.id}
-                      name={part
-                        .call
-                        .name}
-                      onError={onError}
-                      partialResultContent={execution?.partialResult?.content}
-                      repositoryRoot={repositoryRoot}
-                      resultContent={result?.content}
-                      workingDirectory={workingDirectory}
-                      resultDetails={result?.details}
-                      resultError={result?.isError}
-                      streaming={execution?.status === 'generating'}
-                      streamingArguments={execution?.rawArguments}
-                      targeted={highlightedTarget === `tool:${part.call.id}`}
-                    />
+                    <Fragment key={part.call.id}>
+                      {showToolCalls && (
+                        <ToolCallCard
+                          animateLiveChanges
+                          args={part.call.args}
+                          hasResult={result !== undefined}
+                          semiDetailed={semiDetailed}
+                          id={part.call.id}
+                          durationMs={toolDurations.get(part.call.id)}
+                          interrupted={execution?.status === 'interrupted'}
+                          name={part
+                            .call
+                            .name}
+                          onError={onError}
+                          partialResultContent={execution?.partialResult?.content}
+                          repositoryRoot={repositoryRoot}
+                          resultContent={result?.content}
+                          workingDirectory={workingDirectory}
+                          resultDetails={result?.details}
+                          resultError={result?.isError}
+                          streaming={execution?.status === 'generating'}
+                          streamingArguments={execution?.rawArguments}
+                          targeted={highlightedTarget === `tool:${part.call.id}`}
+                        />
+                      )}
+                      {completedPlan && (
+                        <PlanPanel
+                          key={`plan:${part.call.id}`}
+                          plan={completedPlan}
+                          running={false}
+                          sessionId={sessionId}
+                          placement='conversation'
+                        />
+                      )}
+                    </Fragment>
                   )
                 })}
               </div>
             )
           })}
-          {showToolCalls && toolExecutions
+          {toolExecutions
             .filter((execution) =>
               !toolCallIds.has(execution.id) && !liveToolCallIds.has(execution.id)
+              && (showToolCalls || completedPlansByCallId.has(execution.id))
             )
-            .map((execution) => (
-              <ToolCallCard
-                animateLiveChanges
-                args={execution.args}
-                hasResult={execution.result !== undefined}
-                semiDetailed={semiDetailed}
-                id={execution.id}
-                durationMs={toolDurations.get(execution.id)}
-                interrupted={execution.status === 'interrupted'}
-                key={execution.id}
-                name={execution.name}
-                onError={onError}
-                partialResultContent={execution.partialResult?.content}
-                repositoryRoot={repositoryRoot}
-                resultContent={execution.result?.content}
-                workingDirectory={workingDirectory}
-                resultDetails={execution.result?.details}
-                resultError={execution.result?.isError}
-                streaming={execution.status === 'generating'}
-                streamingArguments={execution.rawArguments}
-                targeted={highlightedTarget === `tool:${execution.id}`}
-              />
-            ))}
+            .map((execution) => {
+              const completedPlan = completedPlansByCallId.get(execution.id)
+              return (
+                <Fragment key={execution.id}>
+                  {showToolCalls && (
+                    <ToolCallCard
+                      animateLiveChanges
+                      args={execution.args}
+                      hasResult={execution.result !== undefined}
+                      semiDetailed={semiDetailed}
+                      id={execution.id}
+                      durationMs={toolDurations.get(execution.id)}
+                      interrupted={execution.status === 'interrupted'}
+                      name={execution.name}
+                      onError={onError}
+                      partialResultContent={execution.partialResult?.content}
+                      repositoryRoot={repositoryRoot}
+                      resultContent={execution.result?.content}
+                      workingDirectory={workingDirectory}
+                      resultDetails={execution.result?.details}
+                      resultError={execution.result?.isError}
+                      streaming={execution.status === 'generating'}
+                      streamingArguments={execution.rawArguments}
+                      targeted={highlightedTarget === `tool:${execution.id}`}
+                    />
+                  )}
+                  {completedPlan && (
+                    <PlanPanel
+                      key={`plan:${execution.id}`}
+                      plan={completedPlan}
+                      running={false}
+                      sessionId={sessionId}
+                      placement='conversation'
+                    />
+                  )}
+                </Fragment>
+              )
+            })}
           {pendingSteering.map((message, index) => (
             <article
               className='message user pending-steering conversation-entry'

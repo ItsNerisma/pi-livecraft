@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Tooltip } from '../../components/Tooltip.tsx'
 import { readPlanTiming, writePlanTiming } from './plan-clock-store.ts'
 import {
@@ -156,9 +156,6 @@ export function PlanPanel(
 
   const pending = plan.plan.steps.find(({ status }) => status === 'pending')?.text
   const currentStepNumber = planCurrentStepNumber(plan)
-  const progressStyle = {
-    '--plan-progress': `${plan.total === 0 ? 0 : plan.done / plan.total * 100}%`,
-  } as CSSProperties
   const headline = plan.complete ? 'All steps done' : plan.current ?? pending ?? 'Working'
   const paused = !running && !plan.complete
   const announcement = [
@@ -196,10 +193,7 @@ export function PlanPanel(
             className='plan-progress'
             role='progressbar'
           >
-            <span aria-hidden='true' className='plan-progress-ring' style={progressStyle}>
-              <span>{currentStepNumber}</span>
-            </span>
-            <span aria-hidden='true'>/{plan.total}</span>
+            {currentStepNumber}/{plan.total}
           </span>
           {paused && <span className='plan-note'>paused</span>}
           <span aria-label={`${formatPlanDuration(total)} of active time`} className='plan-total'>

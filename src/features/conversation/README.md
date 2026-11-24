@@ -15,7 +15,7 @@ Pure protocol, reconciliation, and display rules stay separate:
 
 Presentation follows the same ownership boundaries:
 
-- `Conversation.tsx` assembles the thread and owns scrolling and navigation;
+- `Conversation.tsx` assembles the thread and owns scrolling and navigation, including completed plan panels immediately after their final `update_plan` call;
 - `UserMessageRail.tsx` renders the gutter navigator for user prompts;
 - `MessageCard.tsx` renders protocol messages and turn usage;
 - `ActivityIndicator.tsx` renders the current Pi activity;

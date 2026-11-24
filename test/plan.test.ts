@@ -19,6 +19,7 @@ import {
 } from '../shared/plan.ts'
 import { PlanClock } from '../shared/plan-clock.ts'
 import {
+  completedPlanFromToolResult,
   formatPlanDuration,
   parsePlanTiming,
   parseStoredPlanTiming,
@@ -154,6 +155,24 @@ test('numbers the active or next plan step from one', () => {
   assert.equal(planCurrentStepNumber(state('completed', 'in_progress', 'pending')), 2)
   assert.equal(planCurrentStepNumber(state('completed', 'skipped', 'in_progress')), 3)
   assert.equal(planCurrentStepNumber(state('completed', 'skipped', 'completed')), 3)
+})
+
+test('archives only successful completed plan tool results', () => {
+  const completed = parsePlanArguments(planArguments('completed', 'skipped')) as Plan
+  const active = parsePlanArguments(planArguments('completed', 'pending')) as Plan
+  const details = { ...completed, protocol: planProtocol, version: planVersion }
+  const activeDetails = { ...active, protocol: planProtocol, version: planVersion }
+
+  assert.equal(completedPlanFromToolResult(planResult(details))?.complete, true)
+  assert.equal(completedPlanFromToolResult(planResult(activeDetails)), undefined)
+  assert.equal(
+    completedPlanFromToolResult({ ...planResult(details), isError: true }),
+    undefined,
+  )
+  assert.equal(
+    completedPlanFromToolResult({ ...planResult(details), toolName: 'read' }),
+    undefined,
+  )
 })
 
 test('identifies a plan by its steps so status changes keep the collapsed state', () => {

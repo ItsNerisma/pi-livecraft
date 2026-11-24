@@ -1186,7 +1186,6 @@ function App() {
                     repositoryRoot={gitSnapshot?.root}
                     scrollToBottomRequest={scrollToBottomRequest}
                     workingDirectory={selectedSession.cwd}
-                    settledPlan={agentTurnRunning || !plan?.complete ? undefined : plan}
                     sessionId={selectedSession.id}
                     toolDurations={observedToolDurations}
                     toolExecutions={toolExecutions}
@@ -1241,7 +1240,7 @@ function App() {
                   </div>
                   <div className='composer-area'>
                     {/* Completed plans stay here until Pi settles and returns control. */}
-                    {plan && (agentTurnRunning || !plan.complete) && (
+                    {plan && !plan.complete && (
                       <PlanPanel
                         key={selectedSession.id}
                         plan={plan}

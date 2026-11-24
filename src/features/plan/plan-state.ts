@@ -5,7 +5,7 @@ import {
   conversationMessageEntries,
   type LiveMessage,
 } from '../conversation/message-reconciliation.ts'
-import { toolResultInMessage } from '../conversation/tool-protocol.ts'
+import { toolResultInMessage, type ToolResult } from '../conversation/tool-protocol.ts'
 
 /** Names the Pi tool whose result carries the committed plan. */
 export const updatePlanToolName = 'update_plan'
@@ -47,6 +47,13 @@ export function planCurrentStepNumber(state: PlanState): number {
 export function planStateFromDetails(details: unknown): PlanState | undefined {
   const plan = parsePlanDetails(details)
   return plan ? planState(plan) : undefined
+}
+
+/** Returns only a successful completed plan suitable for archiving in the conversation. */
+export function completedPlanFromToolResult(result: ToolResult | undefined): PlanState | undefined {
+  if (!result || result.toolName !== updatePlanToolName || result.isError) return undefined
+  const state = planStateFromDetails(result.details)
+  return state?.complete ? state : undefined
 }
 
 /**

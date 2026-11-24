@@ -80,34 +80,9 @@
   color: var(--accent);
 }
 .plan-progress {
-  display: flex;
   flex: 0 0 auto;
-  align-items: center;
-  gap: 4px;
   color: var(--muted);
   font: 600 11px/1.4 ui-monospace, monospace;
-}
-.plan-progress-ring {
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: conic-gradient(
-    var(--accent) var(--plan-progress),
-    var(--line-strong) 0
-  );
-}
-.plan-progress-ring > span {
-  display: grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--surface-raised);
-  color: var(--accent);
-  font-size: 9px;
-  line-height: 1;
 }
 .plan-total {
   flex: 0 0 auto;
@@ -172,7 +147,7 @@
   animation: plan-step-pulse 1.8s ease-in-out infinite;
 }
 .plan-step[data-status="completed"] .plan-step-marker {
-  color: var(--success);
+  color: var(--accent);
 }
 .plan-step[data-status="skipped"] .plan-step-text {
   text-decoration: line-through;
