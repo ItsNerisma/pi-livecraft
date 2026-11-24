@@ -354,9 +354,6 @@
 .context-warning {
   color: var(--warning);
 }
-.context-warning-strong {
-  color: var(--warning-strong);
-}
 .context-danger {
   color: var(--danger);
 }
