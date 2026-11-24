@@ -8,9 +8,9 @@ import { isObject } from '../../../shared/is-object.ts'
 import type { JsonObject, SessionSnapshot } from '../../../shared/types.ts'
 import { activityForPiEvent, type Activity } from './activity.ts'
 import { advanceEventSequence } from './event-sequence.ts'
-import type { LiveMessage } from './message-reconciliation.ts'
+import { conversationMessageEntries, type LiveMessage } from './message-reconciliation.ts'
 import {
-  planFromDisplayedConversation,
+  planFromMessages,
   planStateFromDetails,
   updatePlanToolName,
   type PlanState,
@@ -155,11 +155,14 @@ export function useConversationRuntime(
           snapshotSessionIdRef.current = sessionId
           setSnapshot(nextSnapshot)
           setSnapshotSessionId(sessionId)
-          const refreshedPlan = planFromDisplayedConversation(
+          const displayedMessages = conversationMessageEntries(
             nextSnapshot.messages,
             liveMessagesRef.current,
           )
-          if (refreshedPlan) setPlan(refreshedPlan)
+            .map(({ message }) => message)
+          const refreshedPlan = planFromMessages(displayedMessages)
+          if (refreshedPlan || displayedMessages.at(-1)?.role === 'user')
+            setPlan(refreshedPlan)
           const latestLiveSequence = nextSnapshot.liveEvents.at(-1)?.sequence ?? 0
           if (latestLiveSequence > appliedPiEventSequenceRef.current) {
             clearLiveMessages()
