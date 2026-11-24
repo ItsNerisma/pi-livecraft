@@ -57,6 +57,7 @@ export function useConversationRuntime(
   const [pendingSteering, setPendingSteering] = useState<string[]>([])
   const [activity, setActivity] = useState<Activity | null>(null)
   const [agentTurnRunning, setAgentTurnRunning] = useState(false)
+  const [planUpdatedDuringTurn, setPlanUpdatedDuringTurn] = useState(false)
   const [plan, setPlan] = useState<PlanState | undefined>()
   const [toolExecutions, setToolExecutions] = useState<ToolExecution[]>([])
   const [observedToolDurations, setObservedToolDurations] = useState<ReadonlyMap<string, number>>(
@@ -212,6 +213,7 @@ export function useConversationRuntime(
       }
       if (event.type === 'agent_start') {
         setAgentTurnRunning(true)
+        setPlanUpdatedDuringTurn(false)
         requestStartedAtRef.current = performance.now()
       }
       const streamedToolCall = toolCallInUpdate(event)
@@ -260,7 +262,10 @@ export function useConversationRuntime(
         )
         if (event.toolName === updatePlanToolName && !result.isError) {
           const committed = planStateFromDetails(details)
-          if (committed) setPlan(committed)
+          if (committed) {
+            setPlan(committed)
+            setPlanUpdatedDuringTurn(true)
+          }
         }
         void refreshSnapshot(sessionId)
       }
@@ -301,6 +306,7 @@ export function useConversationRuntime(
         : undefined
       if (event.type === 'agent_settled') {
         setAgentTurnRunning(false)
+        setPlanUpdatedDuringTurn(false)
         requestStartedAtRef.current = undefined
       }
       if (event.type === 'message_end' || event.type === 'agent_settled') {
@@ -329,6 +335,7 @@ export function useConversationRuntime(
     queueUpdateVersionRef.current += 1
     setActivity(null)
     setAgentTurnRunning(false)
+    setPlanUpdatedDuringTurn(false)
     setPlan(undefined)
     setToolExecutions([])
     setObservedToolDurations(new Map())
@@ -362,6 +369,7 @@ export function useConversationRuntime(
     setLiveMessages(next)
     // A new turn ends the previous plan, matching the plan tool's commit-per-task contract.
     setPlan(undefined)
+    setPlanUpdatedDuringTurn(false)
     clearPlanTiming(selectedIdRef.current)
     return id
   }, [flushLiveUpdates])
@@ -379,6 +387,7 @@ export function useConversationRuntime(
   return {
     activity,
     agentTurnRunning,
+    planUpdatedDuringTurn,
     addOptimisticUserMessage,
     addPendingSteering,
     clearActivity,
