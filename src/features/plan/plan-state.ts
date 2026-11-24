@@ -58,6 +58,36 @@ export function planFromMessages(messages: JsonObject[]): PlanState | undefined 
   return undefined
 }
 
+/** Associates each task's last accepted plan with its final assistant usage row. */
+export function plansByTurnUsage(
+  messages: JsonObject[],
+  usageMessageIndexes: ReadonlySet<number>,
+): ReadonlyMap<number, PlanState> {
+  const plans = new Map<number, PlanState>()
+  let currentPlan: PlanState | undefined
+  let latestUsageIndex: number | undefined
+  const finishTurn = (): void => {
+    if (currentPlan && latestUsageIndex !== undefined)
+      plans.set(latestUsageIndex, currentPlan)
+    currentPlan = undefined
+    latestUsageIndex = undefined
+  }
+
+  messages.forEach((message, index) => {
+    if (message.role === 'user') {
+      finishTurn()
+      return
+    }
+    const result = toolResultInMessage(message)
+    if (result?.toolName === updatePlanToolName && !result.isError) {
+      currentPlan = planStateFromDetails(result.details) ?? currentPlan
+    }
+    if (usageMessageIndexes.has(index)) latestUsageIndex = index
+  })
+  finishTurn()
+  return plans
+}
+
 /**
  * Reads the last accepted plan from the displayed conversation: the snapshot merged with the
  * optimistic turns still live in the interface. A refresh whose snapshot predates a just-sent

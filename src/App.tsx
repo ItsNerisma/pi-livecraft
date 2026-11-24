@@ -1170,6 +1170,7 @@ function App() {
                   <Conversation
                     activity={displayedActivity}
                     agentName={selectedSession.activeAgent}
+                    agentTurnRunning={agentTurnRunning}
                     conversationView={conversationView}
                     key={selectedSession.id}
                     liveMessages={liveMessages}

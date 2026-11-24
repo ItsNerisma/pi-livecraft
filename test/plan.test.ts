@@ -24,6 +24,7 @@ import {
   type PlanTiming,
   planFromDisplayedConversation,
   planFromMessages,
+  plansByTurnUsage,
   planIdentity,
   planRunBase,
   planState,
@@ -188,6 +189,47 @@ test('reads the plan committed since the last user message', () => {
     ]),
     undefined,
   )
+})
+
+test('keeps each turn plan associated with its own final usage row', () => {
+  const firstPlan = {
+    ...planOf({ text: 'First task A', status: 'completed' }, {
+      text: 'First task B',
+      status: 'completed',
+    }),
+    activeMs: 10,
+    recordedAt: 10,
+  }
+  const updatedFirstPlan = {
+    ...planOf({ text: 'Revised task A', status: 'completed' }, {
+      text: 'Revised task B',
+      status: 'completed',
+    }),
+    activeMs: 20,
+    recordedAt: 20,
+  }
+  const secondPlan = {
+    ...planOf({ text: 'Second task A', status: 'completed' }, {
+      text: 'Second task B',
+      status: 'completed',
+    }),
+    activeMs: 30,
+    recordedAt: 30,
+  }
+  const messages = [
+    { role: 'user', content: 'First task' },
+    planResult(firstPlan),
+    planResult(updatedFirstPlan),
+    { role: 'assistant', content: 'First task complete' },
+    { role: 'user', content: 'Second task' },
+    planResult(secondPlan),
+    { role: 'assistant', content: 'Second task complete' },
+  ]
+  const plans = plansByTurnUsage(messages, new Set([3, 6]))
+
+  assert.equal(plans.size, 2)
+  assert.equal(plans.get(3)?.plan.steps[0]?.text, 'Revised task A')
+  assert.equal(plans.get(6)?.plan.steps[0]?.text, 'Second task A')
 })
 
 test('a snapshot that lags a sent message cannot resurrect the plan it ended', () => {

@@ -17,9 +17,9 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 
 ## Data flow
 
-- **Opening or reloading a session:** `planFromMessages()` in `plan-state.ts` reads the last accepted plan from `snapshot.messages`. Pi's active branch keeps pre-compaction entries, so the plan survives compaction, forking, and reopening.
+- **Opening or reloading a session:** `planFromMessages()` in `plan-state.ts` reads the latest plan for the active task. `plansByTurnUsage()` also reconstructs each historical turn's last accepted plan from persisted tool results, so prior panels survive new user messages, compaction, and reopening.
 - **While Pi works:** `useConversationRuntime` reads the same payload from `tool_execution_end` and updates the panel immediately.
-- **Starting a new turn:** the runtime clears the plan when the composer adds an optimistic user message, and `planFromMessages()` ignores a plan older than the last user message. The panel is re-derived from the displayed conversation — the snapshot merged with the optimistic turns still live in the interface — so a refresh whose snapshot predates the just-sent message cannot resurrect the plan that message ended; a plan committed after that message reappears.
+- **Starting a new turn:** the runtime clears the live plan when the composer adds an optimistic user message, and `planFromMessages()` ignores plans older than the last user message. `Conversation.tsx` independently rebuilds settled plan panels per turn from persisted tool results, so a new task hides the live panel without removing earlier panels.
 
 ## States
 
@@ -27,7 +27,7 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 - `complete` — every step is `completed` or `skipped`; the header reads "All steps done". While Pi writes the answer, the panel stays above the composer; when the turn settles, the same panel moves into the conversation immediately before its turn-usage row.
 - A settled unfinished plan is also moved into the conversation and marked `paused`; the conversation's `update_plan` card remains the durable record in either case.
 
-`useConversationRuntime` tracks `agent_start` and `agent_settled` so `App.tsx` renders the panel in exactly one place: above the composer during the turn, then in `Conversation.tsx` before the final turn-usage row. The conversation's content is already inset to the message column, so the moved panel keeps the same width as its composer placement. `PlanPanel.tsx` owns folding: it stores the identity of the folded plan (`planIdentity()`, the step texts) in `localStorage`, so a status change keeps the panel folded and a different plan reopens once.
+`useConversationRuntime` tracks `agent_start` and `agent_settled` so `App.tsx` renders the live panel above the composer only during the turn. `Conversation.tsx` reconstructs and places each settled panel before that turn's usage row. Its content is already inset to the message column, so the panel keeps the same width as its composer placement. Historical panels use the timing values persisted in each plan payload and do not overwrite the live panel's timing store. `PlanPanel.tsx` owns folding: it stores the identity of the folded plan (`planIdentity()`, the step texts) in `localStorage`, so status changes keep the panel folded and a different plan reopens once.
 
 ## Timing
 

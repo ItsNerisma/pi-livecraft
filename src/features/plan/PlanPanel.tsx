@@ -43,7 +43,9 @@ export function PlanPanel(
   const [collapsed, setCollapsed] = useState(() => readCollapsedPlan() === identity)
   const [now, setNow] = useState(() => Date.now())
   // A reload reopens the panel with the time it had folded, plus the instant that time is from.
-  const [restored] = useState(() => readPlanTiming(sessionId))
+  const [restored] = useState(() =>
+    placement === 'composer' ? readPlanTiming(sessionId) : undefined
+  )
   const [timing, setTiming] = useState<PlanTiming>(() => planTiming(plan, restored?.timing))
   const [activeSince, setActiveSince] = useState<number | undefined>()
   const persistRef = useRef<() => void>(() => {})
@@ -117,6 +119,10 @@ export function PlanPanel(
 
   // Leaving the page is the only moment folded time cannot be derived again.
   useEffect(() => {
+    if (placement === 'conversation') {
+      persistRef.current = () => {}
+      return
+    }
     persistRef.current = () => {
       const elapsed = activeSince === undefined ? 0 : Math.max(0, Date.now() - activeSince)
       const step = plan.plan.steps.find(({ status }) => status === 'in_progress')?.text

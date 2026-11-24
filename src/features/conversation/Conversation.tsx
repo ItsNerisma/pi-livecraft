@@ -27,7 +27,7 @@ import { isVisibleConversationMessage } from './message-display.ts'
 import { ToolCallCard } from './ToolCallCard.tsx'
 import { userMessageAnchors, type UserMessageAnchor } from './user-message-anchors.ts'
 import { PlanPanel } from '../plan/PlanPanel.tsx'
-import type { PlanState } from '../plan/plan-state.ts'
+import { plansByTurnUsage, type PlanState } from '../plan/plan-state.ts'
 import {
   conversationHistoryStart,
   resumesAutoScrollAfterDownwardScroll,
@@ -46,6 +46,7 @@ export function Conversation(
   {
     activity,
     agentName,
+    agentTurnRunning,
     messages,
     liveMessages,
     conversationView,
@@ -63,6 +64,7 @@ export function Conversation(
   }: {
     activity: Activity | null
     agentName?: string
+    agentTurnRunning: boolean
     messages: JsonObject[]
     liveMessages: LiveMessage[]
     conversationView: 'simple' | 'semi-detailed' | 'detailed'
@@ -126,6 +128,10 @@ export function Conversation(
     [allMessages, resolvedCallIds],
   )
   const latestUsageIndex = Math.max(-1, ...usagesByMessage.keys())
+  const plansByUsageIndex = useMemo(
+    () => plansByTurnUsage(allMessages, new Set(usagesByMessage.keys())),
+    [allMessages, usagesByMessage],
+  )
   const liveToolCallIds = useMemo(
     () =>
       new Set(
@@ -372,6 +378,8 @@ export function Conversation(
               const index = entry.historyIndex
               const calls = showToolCalls ? toolCallsInMessage(message) : []
               const usage = usagesByMessage.get(index)
+              const planForTurn = plansByUsageIndex.get(index)
+                ?? (index === latestUsageIndex ? settledPlan : undefined)
               if (!isVisibleConversationMessage(message) && calls.length === 0) return null
               return (
                 <div
@@ -410,10 +418,10 @@ export function Conversation(
                       />
                     )
                   })}
-                  {settledPlan && index === latestUsageIndex && usage && (
+                  {planForTurn && !(agentTurnRunning && index === latestUsageIndex) && usage && (
                     <PlanPanel
-                      key={sessionId}
-                      plan={settledPlan}
+                      key={`${sessionId}:${index}`}
+                      plan={planForTurn}
                       running={false}
                       sessionId={sessionId}
                       placement='conversation'
