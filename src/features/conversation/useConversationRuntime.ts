@@ -11,6 +11,7 @@ import { activityForPiEvent, type Activity } from './activity.ts'
 import { advanceEventSequence } from './event-sequence.ts'
 import { conversationMessageEntries, type LiveMessage } from './message-reconciliation.ts'
 import {
+  keepAdvancedPlan,
   planFromMessages,
   planStateFromDetails,
   updatePlanToolName,
@@ -165,8 +166,9 @@ export function useConversationRuntime(
           )
             .map(({ message }) => message)
           const refreshedPlan = planFromMessages(displayedMessages)
-          if (refreshedPlan || displayedMessages.at(-1)?.role === 'user')
-            setPlan(refreshedPlan)
+          if (displayedMessages.at(-1)?.role === 'user') setPlan(undefined)
+          else if (refreshedPlan)
+            setPlan((current) => keepAdvancedPlan(current, refreshedPlan))
           // Events lost while the backend or manager was down are never replayed, so a snapshot
           // fetched after the newest applied agent event is the only witness of a missed settle.
           const agentTurn = agentTurnFromSnapshot(

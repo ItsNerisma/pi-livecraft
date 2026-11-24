@@ -21,6 +21,7 @@ import { PlanClock } from '../shared/plan-clock.ts'
 import {
   completedPlanFromToolResult,
   formatPlanDuration,
+  keepAdvancedPlan,
   parsePlanTiming,
   parseStoredPlanTiming,
   planTickBase,
@@ -173,6 +174,26 @@ test('archives only successful completed plan tool results', () => {
     completedPlanFromToolResult({ ...planResult(details), toolName: 'read' }),
     undefined,
   )
+})
+
+test('keeps an advanced plan when a snapshot resends an older payload', () => {
+  const state = (...statuses: PlanStepStatus[]) =>
+    planState(parsePlanArguments(planArguments(...statuses)) as Plan)
+  const running = state('completed', 'in_progress', 'pending')
+  const complete = state('completed', 'completed', 'completed')
+  const regressed = state('pending', 'pending', 'pending')
+  const replanned = planState(
+    parsePlanArguments({
+      steps: [{ text: 'Step 1', status: 'pending' }, { text: 'Other', status: 'pending' }],
+    }) as Plan,
+  )
+
+  assert.equal(keepAdvancedPlan(running, complete), complete)
+  assert.equal(keepAdvancedPlan(complete, running), complete)
+  assert.equal(keepAdvancedPlan(complete, regressed), complete)
+  assert.equal(keepAdvancedPlan(complete, replanned), replanned)
+  assert.equal(keepAdvancedPlan(undefined, running), running)
+  assert.equal(keepAdvancedPlan(complete, undefined), complete)
 })
 
 test('identifies a plan by its steps so status changes keep the collapsed state', () => {

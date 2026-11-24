@@ -49,6 +49,20 @@ export function planStateFromDetails(details: unknown): PlanState | undefined {
   return plan ? planState(plan) : undefined
 }
 
+/**
+ * Keeps the plan the event stream already reported when a snapshot resends an older payload for
+ * the same steps. A refresh fetched before Pi persisted the final result must not reopen a
+ * completed plan above the composer or rewind a step that already advanced.
+ */
+export function keepAdvancedPlan(
+  current: PlanState | undefined,
+  refreshed: PlanState | undefined,
+): PlanState | undefined {
+  if (!current || !refreshed) return refreshed ?? current
+  if (planIdentity(current) !== planIdentity(refreshed)) return refreshed
+  return refreshed.done >= current.done ? refreshed : current
+}
+
 /** Returns only a successful completed plan suitable for archiving in the conversation. */
 export function completedPlanFromToolResult(result: ToolResult | undefined): PlanState | undefined {
   if (!result || result.toolName !== updatePlanToolName || result.isError) return undefined

@@ -20,7 +20,7 @@ The normalized plan travels in the tool result's `details`. Pi persists `details
 ## Data flow
 
 - **Opening or reloading a session:** `planFromMessages()` in `plan-state.ts` reads the latest plan for the active task. `plansByTurnUsage()` also reconstructs each historical turn's last accepted plan from persisted tool results, so prior panels survive new user messages, compaction, and reopening.
-- **While Pi works:** `useConversationRuntime` reads the same payload from `tool_execution_end` and updates the panel immediately.
+- **While Pi works:** `useConversationRuntime` reads the same payload from `tool_execution_end` and updates the panel immediately. A snapshot refresh can resend an older plan than the event stream reported, so `keepAdvancedPlan()` keeps the plan that already progressed for the same steps; a completed plan never reopens above the composer.
 - **Starting a new turn:** the runtime clears the live plan when the composer adds an optimistic user message, and `planFromMessages()` ignores plans older than the last user message. `Conversation.tsx` renders a completed panel directly after its final `update_plan` tool call and retains a usage-row fallback only when an automatic snapshot temporarily omits that call. A new task hides the live panel without removing earlier panels.
 
 ## States
