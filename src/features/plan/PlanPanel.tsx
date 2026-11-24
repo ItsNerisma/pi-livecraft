@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Tooltip } from '../../components/Tooltip.tsx'
 import { readPlanTiming, writePlanTiming } from './plan-clock-store.ts'
 import {
   formatPlanDuration,
+  planCurrentStepNumber,
   planIdentity,
   planRunBase,
   planTiming,
@@ -12,13 +13,6 @@ import {
 import type { PlanStep, PlanStepStatus } from '../../../shared/plan.ts'
 
 const collapsedPlanKey = 'pi-livecraft.plan-collapsed'
-
-const markers: Record<PlanStepStatus, string> = {
-  pending: '○',
-  in_progress: '●',
-  completed: '✓',
-  skipped: '–',
-}
 
 const statusLabels: Record<PlanStepStatus, string> = {
   pending: 'pending',
@@ -154,6 +148,10 @@ export function PlanPanel(
   }
 
   const pending = plan.plan.steps.find(({ status }) => status === 'pending')?.text
+  const currentStepNumber = planCurrentStepNumber(plan)
+  const progressStyle = {
+    '--plan-progress': `${plan.total === 0 ? 0 : plan.done / plan.total * 100}%`,
+  } as CSSProperties
   const headline = plan.complete ? 'All steps done' : plan.current ?? pending ?? 'Working'
   const paused = !running && !plan.complete
   const announcement = [
@@ -182,7 +180,20 @@ export function PlanPanel(
           <span className='plan-title'>Plan</span>
           <span aria-hidden='true' className='plan-separator' />
           <span className='plan-current'>{headline}</span>
-          <span className='plan-progress'>{plan.done}/{plan.total}</span>
+          <span
+            aria-label='Plan progress'
+            aria-valuemax={plan.total}
+            aria-valuemin={0}
+            aria-valuenow={plan.done}
+            aria-valuetext={`${plan.done} of ${plan.total} steps done; current step ${currentStepNumber}`}
+            className='plan-progress'
+            role='progressbar'
+          >
+            <span aria-hidden='true' className='plan-progress-ring' style={progressStyle}>
+              <span>{currentStepNumber}</span>
+            </span>
+            <span aria-hidden='true'>/{plan.total}</span>
+          </span>
           {paused && <span className='plan-note'>paused</span>}
           <span aria-label={`${formatPlanDuration(total)} of active time`} className='plan-total'>
             {formatPlanDuration(total)}
@@ -199,7 +210,13 @@ export function PlanPanel(
                 data-status={step.status}
                 key={`${index}:${step.text}`}
               >
-                <span aria-hidden='true' className='plan-step-marker'>{markers[step.status]}</span>
+                <span aria-hidden='true' className='plan-step-marker'>
+                  {step.status === 'completed'
+                    ? '✓'
+                    : step.status === 'skipped'
+                    ? '–'
+                    : index + 1}
+                </span>
                 <span className='plan-step-text'>{step.text}</span>
                 {(step.status !== 'pending' || duration > 0) && (
                   <span className='plan-step-duration'>{formatPlanDuration(duration)}</span>

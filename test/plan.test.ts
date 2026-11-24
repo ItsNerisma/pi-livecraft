@@ -30,6 +30,7 @@ import {
   planFromMessages,
   plansByTurnUsage,
   mergePlanHistory,
+  planCurrentStepNumber,
   planIdentity,
   planRunBase,
   planState,
@@ -143,6 +144,16 @@ test('summarizes progress, the current step, and completion', () => {
   )
   assert.equal(complete.complete, true)
   assert.equal(complete.current, undefined)
+})
+
+test('numbers the active or next plan step from one', () => {
+  const state = (...statuses: PlanStepStatus[]) =>
+    planState(parsePlanArguments(planArguments(...statuses)) as Plan)
+
+  assert.equal(planCurrentStepNumber(state('pending', 'pending', 'pending')), 1)
+  assert.equal(planCurrentStepNumber(state('completed', 'in_progress', 'pending')), 2)
+  assert.equal(planCurrentStepNumber(state('completed', 'skipped', 'in_progress')), 3)
+  assert.equal(planCurrentStepNumber(state('completed', 'skipped', 'completed')), 3)
 })
 
 test('identifies a plan by its steps so status changes keep the collapsed state', () => {

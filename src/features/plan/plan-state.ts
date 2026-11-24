@@ -35,6 +35,14 @@ export function planState(plan: Plan): PlanState {
   }
 }
 
+/** One-based ordinal of the active or next pending step, or the final step when complete. */
+export function planCurrentStepNumber(state: PlanState): number {
+  const activeIndex = state.plan.steps.findIndex(({ status }) => status === 'in_progress')
+  if (activeIndex !== -1) return activeIndex + 1
+  const pendingIndex = state.plan.steps.findIndex(({ status }) => status === 'pending')
+  return pendingIndex === -1 ? state.total : pendingIndex + 1
+}
+
 /** Reads a plan from the versioned `details` of an `update_plan` result. */
 export function planStateFromDetails(details: unknown): PlanState | undefined {
   const plan = parsePlanDetails(details)

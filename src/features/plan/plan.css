@@ -80,9 +80,34 @@
   color: var(--accent);
 }
 .plan-progress {
+  display: flex;
   flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
   color: var(--muted);
   font: 600 11px/1.4 ui-monospace, monospace;
+}
+.plan-progress-ring {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--accent) var(--plan-progress),
+    var(--line-strong) 0
+  );
+}
+.plan-progress-ring > span {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--accent);
+  font-size: 9px;
+  line-height: 1;
 }
 .plan-total {
   flex: 0 0 auto;
@@ -118,12 +143,15 @@
   line-height: 1.45;
 }
 .plan-step-marker {
-  display: inline-flex;
-  flex: 0 0 auto;
-  justify-content: center;
-  width: 12px;
+  display: grid;
+  flex: 0 0 20px;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
   color: var(--subtle);
-  font: 11px/1.6 ui-monospace, monospace;
+  font: 600 10px/1 ui-monospace, monospace;
 }
 .plan-step-text {
   flex: 1 1 auto;
@@ -143,11 +171,20 @@
   color: var(--ink);
 }
 .plan-step[data-status="in_progress"] .plan-step-marker {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-raised));
   color: var(--accent);
   animation: plan-step-pulse 1.8s ease-in-out infinite;
 }
 .plan-step[data-status="completed"] .plan-step-marker {
+  border-color: color-mix(in srgb, var(--success) 55%, var(--line));
+  background: var(--success-soft);
   color: var(--success);
+  font-size: 11px;
+}
+.plan-step[data-status="skipped"] .plan-step-marker {
+  border-style: dashed;
+  color: var(--muted);
 }
 .plan-step[data-status="skipped"] .plan-step-text {
   text-decoration: line-through;

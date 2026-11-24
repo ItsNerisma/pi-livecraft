@@ -1240,8 +1240,8 @@ function App() {
                     </div>
                   </div>
                   <div className='composer-area'>
-                    {/* Active and paused plans stay temporary above the composer. */}
-                    {plan && !plan.complete && (
+                    {/* Completed plans stay here until Pi settles and returns control. */}
+                    {plan && (agentTurnRunning || !plan.complete) && (
                       <PlanPanel
                         key={selectedSession.id}
                         plan={plan}
