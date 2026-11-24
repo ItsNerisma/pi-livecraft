@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  abandonsActivePlan,
   parsePlanArguments,
   parsePlanDetails,
+  planAbandonedMessage,
   planMaximumSteps,
   planMinimumSteps,
   planProtocol,
@@ -337,6 +339,42 @@ test('reports a stale plan back to a busy turn once it stops moving', () => {
   assert.match(reminder, /"Step 2" still in progress/)
   assert.match(reminder, /mark it completed/)
   assert.match(reminder, /update_plan/)
+})
+
+test('rejects a different plan that would silently replace an unfinished one', () => {
+  const active = parsePlanArguments(planArguments('completed', 'in_progress', 'pending')) as Plan
+  const fresh = parsePlanArguments({
+    steps: [
+      { text: 'New task', status: 'in_progress' as const },
+      { text: 'Later', status: 'pending' as const },
+    ],
+  }) as Plan
+
+  // No previous plan, or a completed one, is superseded freely.
+  assert.equal(abandonsActivePlan(undefined, fresh), false)
+  assert.equal(
+    abandonsActivePlan(parsePlanArguments(planArguments('completed', 'skipped')) as Plan, fresh),
+    false,
+  )
+  // Sharing a step text counts as updating the same plan, not abandoning it.
+  assert.equal(
+    abandonsActivePlan(
+      active,
+      parsePlanArguments({
+        steps: [
+          { text: 'Step 2', status: 'in_progress' as const },
+          { text: 'Step 3', status: 'pending' as const },
+        ],
+      }) as Plan,
+    ),
+    false,
+  )
+  assert.equal(abandonsActivePlan(active, fresh), true)
+
+  const message = planAbandonedMessage(active)
+  assert.match(message, /unfinished steps/)
+  assert.match(message, /"Step 2", "Step 3"/)
+  assert.match(message, /close the current plan/)
 })
 
 test('reads reported active time from the tool result only', () => {

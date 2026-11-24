@@ -88,6 +88,30 @@ function isDone(step: PlanStep): boolean {
 }
 
 /**
+ * True when a new plan replaces a previous one that still tracks unfinished work and shares no
+ * step with it: the model is starting a different plan instead of updating or closing the active
+ * one. A completed plan, or one that shares a step, may be superseded freely.
+ */
+export function abandonsActivePlan(previous: Plan | undefined, next: Plan): boolean {
+  if (previous === undefined || previous.steps.every(isDone)) return false
+  const texts = new Set(next.steps.map(({ text }) => text))
+  return !previous.steps.some(({ text }) => texts.has(text))
+}
+
+/** Rejection sent when a new plan would silently replace the unfinished active one. */
+export function planAbandonedMessage(previous: Plan): string {
+  const unfinished = previous
+    .steps
+    .filter((step) => !isDone(step))
+    .map(({ text }) => `"${text}"`)
+  return `Your current plan still has unfinished steps: ${
+    unfinished.join(
+      ', ',
+    )
+  }. A new plan cannot silently replace it. First close the current plan — call update_plan with every remaining step marked completed or skipped — then commit your new plan in a separate call. If the new plan covers the same work, keep the existing step texts and update their statuses instead.`
+}
+
+/**
  * Reminder Pi receives when it is about to settle an unfinished plan it kept working on. Without
  * it the model often answers with the last step still in progress, and the interface can only show
  * that abandoned plan as paused once the work is actually done.

@@ -2,9 +2,12 @@ import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-a
 import { Type } from 'typebox'
 import { isObject } from '../shared/is-object.ts'
 import { PlanClock } from '../shared/plan-clock.ts'
+import type { JsonObject } from '../shared/types.ts'
 import {
+  abandonsActivePlan,
   parsePlanArguments,
   parsePlanDetails,
+  planAbandonedMessage,
   planMaximumSteps,
   planMinimumSteps,
   planSettleReminder,
@@ -36,14 +39,20 @@ export default function registerPlan(pi: ExtensionAPI): void {
   /** One settle reminder per run, so a model that ignores it cannot keep the run open. */
   let reminded = false
 
-  /** Restores accumulated timings after a resume, reload, or fork without any extra storage. */
+  /**
+   * Restores the plan committed since the last user message, so a resumed session never treats
+   * the previous task's plan as active, and accumulated timings survive without extra storage.
+   */
   function restore(ctx: ExtensionContext): void {
     clock.restore()
     const entries = ctx.sessionManager.getBranch()
     for (let index = entries.length - 1; index >= 0; index -= 1) {
       const entry = entries[index]
       const message = entry.type === 'message' ? entry.message : undefined
-      if (!isObject(message) || message.role !== 'toolResult') continue
+      if (!isObject(message)) continue
+      // A plan older than the last human message belongs to a finished task.
+      if (isUserTaskMessage(message)) return
+      if (message.role !== 'toolResult') continue
       if (message.toolName !== toolName || message.isError === true) continue
       const plan = parsePlanDetails(message.details)
       if (!plan) continue
@@ -51,6 +60,11 @@ export default function registerPlan(pi: ExtensionAPI): void {
       clock.restore(plan)
       return
     }
+  }
+
+  /** A human message starts a new task; extension-authored custom messages keep the current one. */
+  function isUserTaskMessage(message: JsonObject): boolean {
+    return message.role === 'user' && message.customType === undefined
   }
 
   pi.on('agent_start', () => {
@@ -61,6 +75,10 @@ export default function registerPlan(pi: ExtensionAPI): void {
   })
   pi.on('agent_settled', () => clock.settle(Date.now()))
   pi.on('session_start', (_event, ctx) => restore(ctx))
+  // A human message ends the task the active plan tracks, matching the interface that hides it.
+  pi.on('message_start', (event) => {
+    if (isObject(event.message) && isUserTaskMessage(event.message)) latest = undefined
+  })
 
   pi.on('tool_execution_end', (event) => {
     if (event.toolName !== toolName) toolCallsSinceUpdate += 1
@@ -115,6 +133,7 @@ export default function registerPlan(pi: ExtensionAPI): void {
     promptGuidelines: [
       'Call update_plan before the first tool call of every task that needs more than two steps, and again immediately after the tool call that finishes each step.',
       'Mark a step in progress when you start it and completed when you finish it; never finish several steps in one final call.',
+      'Never commit a different plan while the current one has unfinished steps: close it first by marking those steps completed or skipped, then commit the new plan separately.',
       'Write every update_plan step in the language the user is writing in.',
       `Skip update_plan for a single-step request and for a follow-up that finishes the plan already committed. Send ${planMinimumSteps}-${planMaximumSteps} steps.`,
       'Keep each step text stable between updates so the interface can preserve its timing.',
@@ -130,6 +149,15 @@ export default function registerPlan(pi: ExtensionAPI): void {
       if (!plan) {
         return {
           content: [{ type: 'text' as const, text: rejectedPlanMessage }],
+          details: undefined,
+          isError: true,
+        }
+      }
+      // A different plan may not silently replace an unfinished one; the model must close it first.
+      const previous = latest
+      if (previous !== undefined && abandonsActivePlan(previous, plan)) {
+        return {
+          content: [{ type: 'text' as const, text: planAbandonedMessage(previous) }],
           details: undefined,
           isError: true,
         }
