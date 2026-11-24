@@ -81,6 +81,8 @@ export function plansByTurnUsage(
     const result = toolResultInMessage(message)
     if (result?.toolName === updatePlanToolName && !result.isError) {
       currentPlan = planStateFromDetails(result.details) ?? currentPlan
+      // A plan committed after this usage row belongs to a response that has not settled yet.
+      latestUsageIndex = undefined
     }
     if (usageMessageIndexes.has(index)) latestUsageIndex = index
   })

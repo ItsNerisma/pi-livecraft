@@ -233,6 +233,18 @@ test('keeps each turn plan associated with its own final usage row', () => {
   assert.equal(plans.get(6)?.plan.steps[0]?.text, 'Second task A')
 })
 
+test('does not attach a new plan to usage from the previous response', () => {
+  const details = { ...planOf(...stepList('completed', 'completed')), activeMs: 10, recordedAt: 10 }
+  const messages = [
+    { role: 'user', content: 'First task' },
+    { role: 'assistant', content: 'First task complete' },
+    { role: 'user', content: 'Next task' },
+    planResult(details),
+  ]
+
+  assert.equal(plansByTurnUsage(messages, new Set([1])).size, 0)
+})
+
 test('retains known historical plans when a refresh omits their payload', () => {
   const knownPlan = planState(planOf(...stepList('completed', 'completed')))
   const history = new Map([[4, knownPlan]])
