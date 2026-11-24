@@ -80,6 +80,67 @@ pre.conversation-code-block {
   pointer-events: auto;
   transform: translateY(0);
 }
+.conversation-mermaid {
+  overflow-x: auto;
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--canvas) 60%, var(--surface));
+}
+.conversation-mermaid-diagram {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+/* Mermaid scopes its own rules under the diagram id, so palette overrides need weight. */
+.conversation-mermaid svg {
+  max-width: 100% !important;
+  height: auto !important;
+  background: transparent !important;
+}
+.conversation-mermaid svg .node rect,
+.conversation-mermaid svg .node circle,
+.conversation-mermaid svg .node ellipse,
+.conversation-mermaid svg .node polygon,
+.conversation-mermaid svg .node path,
+.conversation-mermaid svg .actor {
+  fill: var(--surface-raised) !important;
+  stroke: var(--line-strong) !important;
+}
+.conversation-mermaid svg text,
+.conversation-mermaid svg tspan,
+.conversation-mermaid svg .label,
+.conversation-mermaid svg .nodeLabel,
+.conversation-mermaid svg foreignobject div,
+.conversation-mermaid svg foreignobject span {
+  fill: var(--ink) !important;
+  color: var(--ink) !important;
+  font-family: inherit !important;
+}
+.conversation-mermaid svg .cluster rect {
+  fill: transparent !important;
+  stroke: var(--line) !important;
+}
+.conversation-mermaid svg .flowchart-link,
+.conversation-mermaid svg .edgePaths .path,
+.conversation-mermaid svg .messageLine0,
+.conversation-mermaid svg .messageLine1,
+.conversation-mermaid svg .actor-line {
+  stroke: var(--muted) !important;
+}
+.conversation-mermaid svg .arrowheadPath,
+.conversation-mermaid svg marker path {
+  fill: var(--muted) !important;
+  stroke: var(--muted) !important;
+}
+.conversation-mermaid svg .edgeLabel,
+.conversation-mermaid svg .edgeLabel rect,
+.conversation-mermaid svg .edgeLabel p,
+.conversation-mermaid svg .labelBkg {
+  background-color: var(--surface) !important;
+  fill: var(--surface) !important;
+}
 .message.user:has(> .message-actions) {
   padding-right: 48px;
 }

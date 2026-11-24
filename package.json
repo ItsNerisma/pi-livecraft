@@ -44,6 +44,7 @@
   "dependencies": {
     "@radix-ui/react-select": "^2.3.3",
     "diff": "^8.0.4",
+    "mermaid": "^12.3.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-markdown": "^10.1.0",

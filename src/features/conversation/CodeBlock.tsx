@@ -17,7 +17,7 @@ export function CopyablePre({ children, onError }: CodeBlockProps) {
   )
 }
 
-function CodeBlockActions(
+export function CodeBlockActions(
   { onError, value }: { onError?: (cause: unknown) => void; value: () => string },
 ) {
   return (
