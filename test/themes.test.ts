@@ -4,6 +4,7 @@ import {
   allThemes,
   applyThemePalette,
   BUILT_IN_THEMES,
+  contrastColor,
   createTheme,
   deleteTheme,
   duplicateTheme,
@@ -16,6 +17,7 @@ import {
   updateThemeMode,
 } from '../src/features/settings/themes.ts'
 import type { ThemePreferences } from '../src/features/settings/themes.ts'
+import { themeFaviconHref } from '../src/features/settings/theme-favicon.ts'
 
 // ── helpers ────────────────────────────────────────────────────────
 
@@ -329,4 +331,25 @@ test('setActiveTheme change le thème actif', () => {
 test('setActiveTheme ignore les ids inconnus', () => {
   const result = setActiveTheme(basePrefs, 'unknown')
   assert.equal(result.active, 'light')
+})
+
+// ── favicon ────────────────────────────────────────────────────────
+
+test('builds the tab favicon from the active palette', () => {
+  const palette = BUILT_IN_THEMES[1].palette
+  const prefix = 'data:image/svg+xml,'
+  const href = themeFaviconHref(palette)
+
+  assert.ok(href.startsWith(prefix))
+  const svg = decodeURIComponent(href.slice(prefix.length))
+  // The accent fills the icon and its contrast colour draws the mark.
+  assert.ok(svg.includes(`fill="${palette.accent}"`))
+  assert.ok(svg.includes(`stroke="${contrastColor(palette.accent)}"`))
+  // The badge rasterises the icon through a canvas, which needs intrinsic dimensions.
+  assert.ok(svg.includes('width="64"') && svg.includes('height="64"'))
+})
+
+test('flips the mark colour on a light accent', () => {
+  const light = themeFaviconHref({ ...BUILT_IN_THEMES[1].palette, accent: '#f0f0f0' })
+  assert.ok(decodeURIComponent(light).includes('stroke="#000000"'))
 })

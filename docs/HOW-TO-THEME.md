@@ -42,6 +42,7 @@ The following tokens are computed from the 8 source colours and **must not** be 
 2. **`applyThemePalette()`** in `src/features/settings/themes.ts` sets each source colour as a CSS custom property on the root element, plus the contrast colours `--on-accent` and `--on-danger`.
 3. **Derived tokens** reference `var(--accent)`, `var(--ink)`, etc., so they update automatically when the source colours change.
 4. **`[data-theme="dark"]`** overrides the 8 source colours and `color-scheme`, and applies dark-specific rule overrides for fine-tuned contrast.
+5. **The tab favicon** is generated from the palette: `theme-favicon.ts` builds a `data:` SVG whose square uses `--accent` and whose mark uses `--on-accent`, and `App.tsx` applies it through `setBaseFavicon` with the palette, so the icon follows theme edits and previews. A completion badge is recomposited over the new icon when the theme changes.
 
 ## Editing a built-in theme
 

@@ -29,7 +29,11 @@ import type {
 import { isObject } from '../shared/is-object.ts'
 import { Composer } from './features/composer/Composer.tsx'
 import { PlanPanel } from './features/plan/PlanPanel.tsx'
-import { setTabAttention, tabUnwatched } from './features/notifications/tab-attention.ts'
+import {
+  setBaseFavicon,
+  setTabAttention,
+  tabUnwatched,
+} from './features/notifications/tab-attention.ts'
 import { ToastStack, type Toast } from './features/notifications/ToastStack.tsx'
 import { sessionActivity, type PiConnection } from './features/conversation/activity.ts'
 import { Conversation } from './features/conversation/Conversation.tsx'
@@ -49,6 +53,7 @@ import {
 } from './features/right-sidebar/right-sidebar.ts'
 import { RightSidebar } from './features/right-sidebar/RightSidebar.tsx'
 import { quotaProviderForModel } from './features/quotas/quota-display.ts'
+import { hasUnseenCompletion } from './features/workspace/session-indicator.ts'
 import { NewSessionDialog } from './features/workspace/NewSessionDialog.tsx'
 import { useWorkspaceSessions } from './features/workspace/useWorkspaceSessions.ts'
 import { WorkspaceSidebar } from './features/workspace/WorkspaceSidebar.tsx'
@@ -68,6 +73,7 @@ import {
   type CommandId,
 } from './features/commands/command-registry.ts'
 import { SettingsPanel } from './features/settings/SettingsPanel.tsx'
+import { themeFaviconHref } from './features/settings/theme-favicon.ts'
 import { ManagerRuntimeNotice } from './features/manager/ManagerRuntimeNotice.tsx'
 import {
   allThemes,
@@ -351,25 +357,34 @@ function App() {
   /** Whether the session on screen settled while nobody was watching the tab. */
   const [hiddenSessionCompleted, setHiddenSessionCompleted] = useState(false)
   /**
-   * Badges the favicon while a completed session stays unopened, mirroring the sidebar markers.
-   * Completions of sessions that no longer exist are ignored so the badge cannot get stuck.
+   * Badges the favicon while a completed session stays unopened, exactly like the sidebar markers:
+   * the session on screen never counts, and completions of sessions that no longer exist are
+   * ignored so the badge cannot get stuck.
    */
   const unseenCompletion = hiddenSessionCompleted
-    || [...completedSessionIds].some((id) =>
-      sessions.some((session) => (session.sessionPath ?? session.id) === id)
-    )
+    || hasUnseenCompletion(sessions, selectedId, completedSessionIds)
   useEffect(() => setTabAttention(unseenCompletion), [unseenCompletion])
   useEffect(() => {
-    const clearHiddenCompletion = () => {
-      if (!document.hidden) setHiddenSessionCompleted(false)
+    if (!hiddenSessionCompleted) return
+    /** Clears the badge as soon as the tab is demonstrably watched again. */
+    const clearIfWatched = () => {
+      if (!tabUnwatched()) setHiddenSessionCompleted(false)
     }
-    document.addEventListener('visibilitychange', clearHiddenCompletion)
-    window.addEventListener('focus', clearHiddenCompletion)
+    const clear = () => setHiddenSessionCompleted(false)
+    // A settle can be processed right after the tab regained focus, so re-check immediately.
+    clearIfWatched()
+    document.addEventListener('visibilitychange', clearIfWatched)
+    window.addEventListener('focus', clearIfWatched)
+    // Any interaction proves presence even when neither browser event ever fires.
+    window.addEventListener('pointerdown', clear)
+    window.addEventListener('keydown', clear)
     return () => {
-      document.removeEventListener('visibilitychange', clearHiddenCompletion)
-      window.removeEventListener('focus', clearHiddenCompletion)
+      document.removeEventListener('visibilitychange', clearIfWatched)
+      window.removeEventListener('focus', clearIfWatched)
+      window.removeEventListener('pointerdown', clear)
+      window.removeEventListener('keydown', clear)
     }
-  }, [])
+  }, [hiddenSessionCompleted])
 
   const {
     activity,
@@ -487,6 +502,7 @@ function App() {
     const shadows = shadowForMode(activeTheme.mode)
     root.style.setProperty('--shadow', shadows.shadow)
     root.style.setProperty('--shadow-soft', shadows['shadow-soft'])
+    setBaseFavicon(themeFaviconHref(activeTheme.palette))
   }, [activeTheme])
 
   // Dialogs

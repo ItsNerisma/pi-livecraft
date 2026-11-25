@@ -90,23 +90,30 @@ export function useWorkspaceSessions(
   groupsRef.current = groups
 
   const selectedSession = sessions.find((session) => session.id === selectedId)
+  /** The stable file behind the selected session, once the session list knows it. */
+  const selectedSessionPath = selectedSession?.sessionPath
   /** Workspace-dependent features follow the selected session, else the last used workspace. */
   const workspacePath = selectedSession?.cwd ?? activeWorkspacePath
 
   useEffect(() => {
     if (selectedId) window.localStorage.setItem(SELECTED_SESSION_KEY, selectedId)
     else window.localStorage.removeItem(SELECTED_SESSION_KEY)
+  }, [selectedId])
+
+  /**
+   * Opening a session consumes its completion marker. Both keys are cleared because the persisted
+   * set may name the session by id or by path, and the path only arrives with the session list.
+   */
+  useEffect(() => {
+    if (!selectedId) return
+    const keys = [selectedId, selectedSessionPath]
     setCompletedSessionIds((current) => {
-      const sessionKey = sessionsRef
-        .current
-        .find((session) => session.id === selectedId)
-        ?.sessionPath ?? selectedId
-      if (!current.has(sessionKey)) return current
+      if (!keys.some((key) => key !== undefined && current.has(key))) return current
       const next = new Set(current)
-      next.delete(sessionKey)
+      for (const key of keys) if (key !== undefined) next.delete(key)
       return next
     })
-  }, [selectedId])
+  }, [selectedId, selectedSessionPath])
 
   // Keep the last workspace for features that outlive a selection, and tell the
   // application when the context changes so workspace-scoped state can reset.

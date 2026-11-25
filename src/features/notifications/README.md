@@ -18,20 +18,34 @@ styles in this directory.
 `tab-attention.ts` owns the browser-tab completion badge: a red dot composited onto the current
 favicon, the way Discord marks unread tabs. `App.tsx` keeps the badge up while an unseen completion
 exists (`unseenCompletion`), from two sources: an unopened completion tracked by
-`completedSessionIds` (the same set behind the sidebar markers, so the badge survives until that
-session is opened and even a page refresh), and `hiddenSessionCompleted`, which covers the session
-already on screen settling while nobody watched the tab and clears on the next `visibilitychange` or
-window `focus`.
+`completedSessionIds`, and `hiddenSessionCompleted`, which covers the session already on screen
+settling while nobody watched the tab.
 
-Surrounding the badge on a canvas instead of shipping a second icon file keeps one source of truth
-for the favicon: the module rasterises whatever `link[rel~="icon"]` currently points at, draws the
-badge in its bottom-right corner, and hands the result back as a `data:` URL. Original hrefs are
-captured before the swap so clearing restores them exactly; compositions are cached per source href.
-`public/favicon.svg` therefore declares `width`/`height` so browsers rasterise it at its intrinsic
-size in the canvas.
+The sidebar stays the single rule for the first source: `hasUnseenCompletion` reuses the `complete`
+branch of `sessionIndicator`, so the session on screen is never marked, whatever a restored marker
+still names, and completions of sessions that no longer exist are ignored. The badge therefore
+cannot disagree with the sidebar, and it clears on the next render after that session is opened.
+`hiddenSessionCompleted` is a display-only flag, so it is cleared the moment the tab is watched
+again: `visibilitychange` and window `focus` re-check `tabUnwatched()`, the flag re-checks itself
+immediately when it is set, and any `pointerdown`/`keydown` ends it. No event is trusted on its own,
+so a settle processed just as the tab regains focus cannot leave the badge stuck.
+
+The base icon follows the active theme: `setBaseFavicon` receives the `data:` URL built by
+`theme-favicon.ts` from the palette accent and its contrast colour, and `App.tsx` plus the Settings
+theme preview call it on every theme change. While the badge is up a new base recomposes it, so a
+live theme change keeps the marker visible and restoring brings back the right icon. Keeping the
+badge on a canvas instead of shipping a second icon file keeps one source of truth: the module
+rasterises the recorded base favicon, draws the badge in its bottom-right corner, and hands the
+result back as a `data:` URL. Compositions are cached per base href and ring colour, and a write
+counter prevents a slower composition from overwriting a newer one.
+
+The badge ring uses `--on-accent` so the dot stays readable on saturated accents, which fill the
+themed icon. `public/favicon.svg` remains the pre-JavaScript fallback and declares `width`/`height`
+so browsers rasterise it at its intrinsic size in the canvas.
 
 The marker is deliberately non-intrusive: it never requests the browser notification permission and
 never shows a system notification. The document title stays untouched, so the tab keeps its plain
 name; only the favicon changes.
 
-Focused tests: none; the module only touches icon links and visibility APIs.
+Focused tests: `hasUnseenCompletion` is covered in `test/session-indicator.test.ts`; the favicon URL
+is covered in `test/themes.test.ts`. The module itself only touches icon links and visibility APIs.

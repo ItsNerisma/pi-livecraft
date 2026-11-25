@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { SessionSummary } from '../shared/types.ts'
-import { sessionIndicator } from '../src/features/workspace/session-indicator.ts'
+import {
+  hasUnseenCompletion,
+  sessionIndicator,
+} from '../src/features/workspace/session-indicator.ts'
 
 const session: SessionSummary = {
   id: 'session-1',
@@ -97,4 +100,25 @@ test('prioritizes compacting over working and complete', () => {
     sessionIndicator({ ...session, status: 'idle' }, '', noneCompacting, completed),
     'complete',
   )
+})
+
+test('never reports an unseen completion for the session on screen', () => {
+  // Regression: the tab badge used to stay lit for the session already displayed, because the
+  // favicon check ignored the selection rule the sidebar marker follows.
+  assert.equal(hasUnseenCompletion([session], '', new Set([session.id])), true)
+  assert.equal(hasUnseenCompletion([session], session.id, new Set([session.id])), false)
+
+  // A restored marker named by the session path must also lose to the selection.
+  const withPath = { ...session, sessionPath: '/sessions/session.jsonl' }
+  const restored = new Set(['/sessions/session.jsonl'])
+  assert.equal(hasUnseenCompletion([withPath], '', restored), true)
+  assert.equal(hasUnseenCompletion([withPath], withPath.id, restored), false)
+
+  // Another session finishing keeps the badge up.
+  const other: SessionSummary = { ...session, id: 'session-2' }
+  assert.equal(hasUnseenCompletion([session, other], other.id, new Set([session.id])), true)
+
+  // A marker that no listed session answers cannot badge the tab.
+  assert.equal(hasUnseenCompletion([session], '', new Set(['gone'])), false)
+  assert.equal(hasUnseenCompletion([], '', new Set([session.id])), false)
 })

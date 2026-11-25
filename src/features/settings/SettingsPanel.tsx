@@ -2,6 +2,8 @@ import { type ReactNode, useEffect, useState } from 'react'
 import * as Select from '@radix-ui/react-select'
 import type { CommandDefinition, CommandId } from '../commands/command-registry.ts'
 import { shortcutFromEvent, shortcutConflicts } from '../commands/command-registry.ts'
+import { setBaseFavicon } from '../notifications/tab-attention.ts'
+import { themeFaviconHref } from './theme-favicon.ts'
 import {
   applyThemePalette,
   contrastColor,
@@ -118,6 +120,8 @@ function ThemeSettings(
     const shadows = shadowForMode(theme.mode)
     root.style.setProperty('--shadow', shadows.shadow)
     root.style.setProperty('--shadow-soft', shadows['shadow-soft'])
+    // Preview the tab icon too, so a hovered palette is shown everywhere it is used.
+    setBaseFavicon(themeFaviconHref(theme.palette))
   }, [activeTheme, previewTheme])
 
   return (

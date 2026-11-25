@@ -22,3 +22,18 @@ export function sessionIndicator(
   if (session.status === 'idle') return 'idle'
   return null
 }
+
+/**
+ * Whether a session other than the selected one still needs attention, mirroring the `complete`
+ * branch of {@link sessionIndicator}. The tab badge uses it so the session on screen never stays
+ * marked, even when a restored marker still names it.
+ */
+export function hasUnseenCompletion(
+  sessions: readonly SessionSummary[],
+  selectedId: string,
+  completedSessionIds: ReadonlySet<string>,
+): boolean {
+  return sessions.some((session) =>
+    session.id !== selectedId && completedSessionIds.has(session.sessionPath ?? session.id)
+  )
+}

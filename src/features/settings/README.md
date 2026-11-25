@@ -5,7 +5,7 @@
 ## Current ownership
 
 - `commands/` defines commands, default shortcuts, normalization, and conflict detection.
-- `settings/` captures shortcut changes and resets them.
+- `settings/` captures shortcut changes and resets them, and owns the theme palette plus the themed tab favicon.
 - `App.tsx` persists shortcuts, theme, conversation view, workspace restoration, left and right sidebar state.
 - `composer/` persists drafts per session.
 
