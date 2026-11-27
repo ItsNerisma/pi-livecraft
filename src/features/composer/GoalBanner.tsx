@@ -1,12 +1,13 @@
 import { Tooltip } from '../../components/Tooltip.tsx'
 
 /**
- * Sits above the composer while a goal is armed: the short objective, its verification state,
- * and a way out. The full goal text stays in the conversation, never in this bar.
+ * Sits above the composer while a pi-goal goal is armed or running: the short objective published
+ * by the extension, its state, and the controls that belong to it.
  */
-export function GoalBanner({ objective, status, onStop }: {
+export function GoalBanner({ objective, status, onResume, onStop }: {
   objective: string
   status: string | null
+  onResume?: () => void
   onStop: () => void
 }) {
   return (
@@ -19,9 +20,14 @@ export function GoalBanner({ objective, status, onStop }: {
         {objective || 'Your next message sets the goal'}
       </span>
       {status && <span className='goal-banner-status'>{status}</span>}
-      <Tooltip label='Stop goal mode'>
+      {onResume && (
+        <button className='goal-banner-action' onClick={onResume} type='button'>
+          Resume
+        </button>
+      )}
+      <Tooltip label='Clear goal'>
         <button
-          aria-label='Stop goal mode'
+          aria-label='Clear goal'
           className='goal-banner-stop'
           onClick={onStop}
           type='button'

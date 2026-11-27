@@ -1,45 +1,67 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  formatGoalEvidence,
-  formatGoalReminder,
+  goalCommandAvailable,
   goalSummary,
-  parseGoalDefinition,
-  parseGoalReview,
+  readGoalState,
 } from '../src/features/composer/goal-mode.ts'
 
-test('parses strict completion and continuation verdicts', () => {
-  assert.deepEqual(parseGoalReview('{"complete":true,"nextAction":""}'), {
-    complete: true,
-    nextAction: '',
+const goal = { objective: 'Ship the migration', status: 'active' }
+
+function eventMessage(kind: string, goalValue: unknown = goal, extra: object = {}) {
+  return {
+    role: 'custom',
+    customType: 'pi-goal-event',
+    content: 'Continue toward the goal',
+    display: true,
+    details: { kind, goal: goalValue, timestamp: 1, ...extra },
+  }
+}
+
+test('detects the pi-goal command among session commands', () => {
+  assert.equal(goalCommandAvailable([{ name: 'goal' }, { name: 'agent' }]), true)
+  assert.equal(goalCommandAvailable([{ name: 'agent' }]), false)
+  assert.equal(goalCommandAvailable([]), false)
+})
+
+test('reads the goal published by the latest pi-goal event', () => {
+  assert.deepEqual(readGoalState([eventMessage('active')]), {
+    objective: 'Ship the migration',
+    status: 'active',
   })
-  assert.deepEqual(parseGoalReview('```json\n{"complete":false,"nextAction":"Run tests"}\n```'), {
-    complete: false,
-    nextAction: 'Run tests',
+  assert.deepEqual(readGoalState([eventMessage('continuation')]), {
+    objective: 'Ship the migration',
+    status: 'active',
+  })
+  assert.deepEqual(readGoalState([eventMessage('paused')]), {
+    objective: 'Ship the migration',
+    status: 'paused',
+  })
+  assert.deepEqual(readGoalState([eventMessage('budget_limited')]), {
+    objective: 'Ship the migration',
+    status: 'budget_limited',
   })
 })
 
-test('rejects ambiguous or malformed review output', () => {
-  assert.equal(parseGoalReview('COMPLETE'), null)
-  assert.equal(parseGoalReview('{"complete":"yes"}'), null)
-  assert.equal(parseGoalReview('not json'), null)
-})
-
-test('parses the extracted completion contract', () => {
-  assert.deepEqual(
-    parseGoalDefinition('{"objective":"Ship the feature","criteria":"Tests pass"}'),
-    { objective: 'Ship the feature', criteria: 'Tests pass' },
+test('ignores events that do not come from pi-goal or carry no goal', () => {
+  assert.equal(readGoalState([]), null)
+  assert.equal(readGoalState([{ role: 'assistant', content: 'hello' }]), null)
+  assert.equal(readGoalState([{ role: 'custom', customType: 'compaction', content: 'x' }]), null)
+  assert.equal(readGoalState([eventMessage('active', { objective: '   ' })]), null)
+  assert.equal(
+    readGoalState([{ role: 'custom', customType: 'pi-goal-event', display: true }]),
+    null,
   )
-  assert.deepEqual(parseGoalDefinition('{"objective":"  Fix the bug  "}'), {
-    objective: 'Fix the bug',
-    criteria: '',
-  })
 })
 
-test('rejects an extraction without a usable objective', () => {
-  assert.equal(parseGoalDefinition('{"criteria":"Tests pass"}'), null)
-  assert.equal(parseGoalDefinition('{"objective":"   "}'), null)
-  assert.equal(parseGoalDefinition('no contract'), null)
+test('ends the goal on the latest cleared or complete event', () => {
+  assert.equal(readGoalState([eventMessage('complete')]), null)
+  assert.equal(readGoalState([eventMessage('cleared')]), null)
+})
+
+test('prefers the most recent event over an older one', () => {
+  assert.equal(readGoalState([eventMessage('paused'), eventMessage('resumed')])?.status, 'active')
+  assert.equal(readGoalState([eventMessage('active'), eventMessage('cleared')]), null)
 })
 
 test('collapses the objective onto one short banner line', () => {
@@ -47,26 +69,4 @@ test('collapses the objective onto one short banner line', () => {
   const long = goalSummary('x'.repeat(400))
   assert.equal(long.length, 158)
   assert.ok(long.endsWith('…'))
-})
-
-test('builds a short check-in that carries the next action only', () => {
-  const reminder = formatGoalReminder('Run the focused tests')
-  assert.equal(reminder, 'Goal check-in: not complete yet. Next: Run the focused tests')
-  assert.equal(
-    formatGoalReminder('  '),
-    'Goal check-in: not complete yet. Next: Continue toward the goal and verify the result.',
-  )
-})
-
-test('formats recent text evidence and excludes image payloads', () => {
-  const evidence = formatGoalEvidence([
-    {
-      role: 'user',
-      content: [{ type: 'text', text: 'Do the task' }, { type: 'image', data: 'secret' }],
-    },
-    { role: 'assistant', content: 'Done' },
-  ])
-  assert.match(evidence, /user: Do the task/)
-  assert.match(evidence, /assistant: Done/)
-  assert.doesNotMatch(evidence, /secret/)
 })

@@ -68,6 +68,7 @@ export const Composer = memo(function Composer({
   commands,
   running,
   compacting,
+  goalAvailable,
   goalMode,
   goalLocked,
   onGoalModeChange,
@@ -101,6 +102,7 @@ export const Composer = memo(function Composer({
   commands: JsonObject[]
   running: boolean
   compacting: boolean
+  goalAvailable: boolean
   goalMode: boolean
   goalLocked: boolean
   onGoalModeChange: (enabled: boolean) => void
@@ -707,27 +709,29 @@ export const Composer = memo(function Composer({
       <div className='composer-footer'>
         <div className='composer-actions'>
           <div className='composer-tools'>
-            <Tooltip
-              label={goalLocked
-                ? 'Goal runs until verified'
-                : goalMode
-                ? 'Disable goal mode'
-                : 'Enable goal mode'}
-            >
-              <button
-                aria-label={goalMode ? 'Disable goal mode' : 'Enable goal mode'}
-                aria-pressed={goalMode}
-                className={`goal-toggle${goalMode ? ' active' : ''}`}
-                disabled={goalLocked}
-                onClick={() => onGoalModeChange(!goalMode)}
-                type='button'
+            {goalAvailable && (
+              <Tooltip
+                label={goalLocked
+                  ? 'Goal runs until complete'
+                  : goalMode
+                  ? 'Disable goal mode'
+                  : 'Send the next message as a pi-goal objective'}
               >
-                <svg aria-hidden='true' viewBox='0 0 16 16'>
-                  <path d='M8 1.5 9.6 6.4 14.5 8l-4.9 1.6L8 14.5l-1.6-4.9L1.5 8l4.9-1.6L8 1.5Z' />
-                </svg>
-                Goal
-              </button>
-            </Tooltip>
+                <button
+                  aria-label={goalMode ? 'Disable goal mode' : 'Enable goal mode'}
+                  aria-pressed={goalMode}
+                  className={`goal-toggle${goalMode ? ' active' : ''}`}
+                  disabled={goalLocked}
+                  onClick={() => onGoalModeChange(!goalMode)}
+                  type='button'
+                >
+                  <svg aria-hidden='true' viewBox='0 0 16 16'>
+                    <path d='M8 1.5 9.6 6.4 14.5 8l-4.9 1.6L8 14.5l-1.6-4.9L1.5 8l4.9-1.6L8 1.5Z' />
+                  </svg>
+                  Goal
+                </button>
+              </Tooltip>
+            )}
             {showAgentSelector && (
               <AgentSelect
                 agentOptions={agentOptions}

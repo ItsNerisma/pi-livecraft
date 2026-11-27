@@ -457,6 +457,23 @@
   font: 10px ui-monospace, monospace;
   white-space: nowrap;
 }
+.goal-banner-action {
+  flex: 0 0 auto;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 2px 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 600 10px ui-sans-serif, system-ui, sans-serif;
+}
+.goal-banner-action:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.goal-banner-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 .goal-banner-stop {
   display: grid;
   place-items: center;

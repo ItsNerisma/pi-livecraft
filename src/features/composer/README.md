@@ -22,8 +22,8 @@ All data arrives through props. The Composer never calls the backend directly.
 | `composer-dictation.ts` | Microphone recording, `pi-livecraft.dictation` preferences |
 | `DictationSetupDialog.tsx` | Guided whisper.cpp setup: prerequisite checklist, copiable command, model download |
 | `composer-utils.ts` | Label/token formatting, command detection, compact-command fallback, prompt delivery mapping, draft loading, `isObject` |
-| `goal-mode.ts` | Bounds recent text evidence, parses strict isolated-review verdicts, extracts the completion contract, and formats the short check-in |
-| `GoalBanner.tsx` | Goal bar above the composer: short objective, verification state, and stop control |
+| `goal-mode.ts` | Detects the `pi-goal` `/goal` command and reads the goal it publishes from `pi-goal-event` messages |
+| `GoalBanner.tsx` | Goal bar above the composer: short objective, pi-goal state, resume and clear controls |
 | `prompt-title.ts` | Immediate session title, replaced later by Pi's extension title |
 | `selects/ComposerSelect.tsx` | Generic Radix Select wrapper with tone-based icons |
 | `selects/AgentSelect.tsx` | Agent picker — derives label from options, calls `onAgentChange` |
@@ -41,7 +41,7 @@ All data arrives through props. The Composer never calls the backend directly.
   (`pi-livecraft.composer-draft.<sessionId>`).
 - `slashOpen`, `slashFilter`, `slashIndex` — slash-command popover.
 - `openSelect` — which dropdown (agent/model/thinking) is open.
-- Goal mode is owned by `App.tsx` per session. The composer toggle arms an objective: the user's message is sent unchanged, one isolated call extracts a compact objective and completion criteria, and every settled run is reviewed in a separate tool-free Pi process against recent text evidence. An incomplete goal continues with a one-line check-in carrying only the next action, up to five checks; disabling goal mode or aborting clears the loop.
+- Goal mode delegates to the [`pi-goal`](https://github.com/Michaelliv/pi-goal) extension and stays hidden when it is not installed. The toggle arms the next message as `/goal <objective>`; the extension owns persistence, continuation, budgets, and completion. Livecraft reads the goal back from the visible `pi-goal-event` custom messages (`details.goal`), so a goal started from the Pi TUI also appears here. The banner shows the objective while the goal is active or paused, sends `/goal resume` or `/goal clear`, and disappears when the extension reports completion or clearing.
 - `behavior` — `steer`, `interrupt`, or `followUp`; only visible while Pi is running.
   `steer` and `followUp` travel as `streamingBehavior`; `interrupt` sends `abort`
   first, waits for Pi to become idle, then sends a plain `prompt`.
