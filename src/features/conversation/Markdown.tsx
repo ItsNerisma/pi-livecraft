@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm'
 import { CopyablePre } from './CodeBlock.tsx'
 import { parseMarkdownFrontmatter } from './markdown-frontmatter.ts'
 
-const LazyCodeHighlighter = lazy(() => import('./CodeHighlighter'))
+const LazyCodeHighlighter = lazy(() => import('../../components/CodeHighlighter.tsx'))
 const LazyMermaidBlock = lazy(() => import('./MermaidBlock'))
 const languageAliases: Record<string, string> = {
   cs: 'csharp',

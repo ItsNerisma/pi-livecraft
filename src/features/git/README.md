@@ -27,6 +27,6 @@ Discard, reset, and revert ask for confirmation. Discard is destructive and can 
 
 `App.tsx` loads and mutates Git state through `src/api.ts`. `GitWidget` owns only its selected file, commit message, busy state, and currently displayed diff. Public response shapes live in `shared/types.ts`.
 
-The [Git backend capability](/server/features/git/README.md) runs the validated Git commands in the selected workspace. Unified diff parsing remains pure in `git-diff.ts`. `GitDiff.tsx` renders the rows and reuses the conversation `CodeHighlighter` for syntax colors, so files whose language it does not register stay plain.
+The [Git backend capability](/server/features/git/README.md) runs the validated Git commands in the selected workspace. Unified diff parsing remains pure in `git-diff.ts`. `GitDiff.tsx` renders the rows and reuses the shared `CodeLines` renderer for syntax colors, so files whose language it does not register stay plain.
 
 Focused coverage: `test/git-sidebar.test.ts` and `test/git.test.ts`.

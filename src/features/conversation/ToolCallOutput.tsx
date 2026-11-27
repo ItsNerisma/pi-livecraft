@@ -20,7 +20,7 @@ import {
   toolFilePath,
 } from './tool-presentation.ts'
 
-const LazyCodeHighlighter = lazy(() => import('./CodeHighlighter'))
+const LazyCodeHighlighter = lazy(() => import('../../components/CodeHighlighter.tsx'))
 
 const lineNumberStyle: CSSProperties = {
   minWidth: '2.5em',
@@ -245,7 +245,14 @@ export function ToolCallContent({
   const diffLines = diffString ? parseEditDiff(diffString) : []
   const changes = showEditDiff && call.name === 'edit' ? toolEditChanges(call.args) : []
   if (diffLines.length > 0 || changes.length > 0)
-    return <ToolCallEditDiff changes={changes} diffLines={diffLines} onCollapse={onCollapse} />
+    return (
+      <ToolCallEditDiff
+        changes={changes}
+        diffLines={diffLines}
+        filePath={toolFilePath(call.args)}
+        onCollapse={onCollapse}
+      />
+    )
 
   const rawContentDisplay = call.name === 'read' || call.name === 'write'
     ? readContentDisplay(call.args)
