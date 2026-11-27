@@ -185,10 +185,10 @@
   font-weight: 700;
 }
 .git-diff-line.added .git-diff-token.added {
-  background: color-mix(in srgb, var(--success) 22%, var(--surface));
+  background: color-mix(in srgb, var(--success) 30%, var(--surface));
 }
 .git-diff-line.removed .git-diff-token.removed {
-  background: color-mix(in srgb, var(--danger) 20%, var(--surface));
+  background: color-mix(in srgb, var(--danger) 28%, var(--surface));
 }
 .git-diff-gap {
   margin: 6px 0;

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { parseGitDiff } from '../src/features/git/git-diff.ts'
+import { gitDiffBlocks, parseGitDiff } from '../src/features/git/git-diff.ts'
 import {
   clampRightSidebarWidth,
   defaultRightSidebarWidth,
@@ -69,4 +69,15 @@ test('met en évidence les mots modifiés dans un remplacement d’une ligne', (
       segments: [{ text: 'const x = ', kind: 'shared' }, { text: '2', kind: 'added' }],
     },
   ])
+})
+
+test('regroupe les lignes en blocs séparés par les lignes inchangées', () => {
+  const blocks = gitDiffBlocks(
+    parseGitDiff('@@ -1,2 +1,2 @@\n a\n-b\n+c\n@@ -10,1 +10,1 @@\n-d\n+e\n'),
+  )
+
+  assert.deepEqual(blocks.map((block) => block.kind), ['code', 'gap', 'code'])
+  assert.equal(blocks[0].kind === 'code' ? blocks[0].lines.length : 0, 3)
+  assert.deepEqual(blocks[1], { count: 7, kind: 'gap' })
+  assert.equal(blocks[2].kind === 'code' ? blocks[2].lines.length : 0, 2)
 })

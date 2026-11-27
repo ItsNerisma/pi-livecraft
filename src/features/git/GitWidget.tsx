@@ -9,6 +9,7 @@ import type {
 } from '../../../shared/types.ts'
 import { resolveFileIcon } from '../../../shared/file-icon.ts'
 import { WidgetLayout } from '../right-sidebar/WidgetLayout.tsx'
+import { GitDiff } from './GitDiff.tsx'
 import { parseGitDiff, type GitDiffEntry } from './git-diff.ts'
 
 /** Local git-error target — which element to shake on failure. */
@@ -283,7 +284,7 @@ export function GitWidget(
       {errorMessage && <p className='git-error' role='alert'>{errorMessage}</p>}
       {fileDiff || selectedPath
         ? fileDiff
-          ? <GitDiff entries={diffEntries} />
+          ? <GitDiff entries={diffEntries} path={fileDiff.path} />
           : <p className='git-empty'>Loading diff…</p>
         : (
           <>
@@ -443,43 +444,6 @@ function GitFileRow({ file }: { file: GitSnapshot['files'][number] }) {
         <i>−{file.deletions ?? '—'}</i>
       </span>
     </>
-  )
-}
-
-/** Displays a parsed Git diff with a single gutter and collapsed unchanged regions. */
-function GitDiff({ entries }: { entries: GitDiffEntry[] }) {
-  if (entries.length === 0) return <p className='git-empty'>No textual differences to display.</p>
-
-  return (
-    <section className='git-diff' aria-label='File diff'>
-      {entries.map((entry, index) => {
-        if (entry.kind === 'gap')
-          return (
-            <p className='git-diff-gap' key={index}>
-              {entry.count} unmodified line{entry.count > 1 ? 's' : ''}
-            </p>
-          )
-
-        return (
-          <div className={`git-diff-line ${entry.kind}`} key={index}>
-            <span>{entry.newLine ?? entry.oldLine ?? ''}</span>
-            <i aria-hidden='true'>
-              {entry.kind === 'added' ? '+' : entry.kind === 'removed' ? '−' : ' '}
-            </i>
-            <code>
-              {entry.segments?.length
-                ? entry.segments.map((segment, segmentIndex) => (
-                  <span className={`git-diff-token ${segment.kind}`} key={segmentIndex}>
-                    {segment
-                      .text}
-                  </span>
-                ))
-                : entry.content || ' '}
-            </code>
-          </div>
-        )
-      })}
-    </section>
   )
 }
 

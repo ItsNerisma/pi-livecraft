@@ -17,6 +17,28 @@ export interface GitDiffGap {
 
 export type GitDiffEntry = GitDiffGap | GitDiffLine
 
+export interface GitDiffCodeBlock {
+  kind: 'code'
+  lines: GitDiffLine[]
+}
+
+export type GitDiffBlock = GitDiffCodeBlock | GitDiffGap
+
+/** Groups colorable rows into code blocks separated by collapsed unchanged gaps. */
+export function gitDiffBlocks(entries: GitDiffEntry[]): GitDiffBlock[] {
+  const blocks: GitDiffBlock[] = []
+  for (const entry of entries) {
+    if (entry.kind === 'gap') {
+      blocks.push(entry)
+      continue
+    }
+    const previous = blocks[blocks.length - 1]
+    if (previous?.kind === 'code') previous.lines.push(entry)
+    else blocks.push({ kind: 'code', lines: [entry] })
+  }
+  return blocks
+}
+
 /**
  * Turns a unified diff into colorable rows. Hunk headers become the count of
  * unchanged lines between hunks, and one-line replacements carry word-level

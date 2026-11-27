@@ -6,7 +6,7 @@ The Git widget keeps the state of the current repository beside the conversation
 
 - the current branch and whether the working tree is clean;
 - added, modified, deleted, and renamed files, with line counts when Git provides them;
-- a line-numbered textual diff for added and modified files, with collapsed counts for the unchanged lines between hunks and word-level highlights on one-line replacements;
+- a line-numbered textual diff for added and modified files, syntax-colored for the languages the conversation highlighter supports, with collapsed counts for the unchanged lines between hunks and word-level highlights on one-line replacements;
 - commits ahead of the tracked remote branch, including their subject and changed files;
 - action errors without closing the panel or losing the current selection.
 
@@ -27,6 +27,6 @@ Discard, reset, and revert ask for confirmation. Discard is destructive and can 
 
 `App.tsx` loads and mutates Git state through `src/api.ts`. `GitWidget` owns only its selected file, commit message, busy state, and currently displayed diff. Public response shapes live in `shared/types.ts`.
 
-The [Git backend capability](/server/features/git/README.md) runs the validated Git commands in the selected workspace. Unified diff parsing remains pure in `git-diff.ts`.
+The [Git backend capability](/server/features/git/README.md) runs the validated Git commands in the selected workspace. Unified diff parsing remains pure in `git-diff.ts`. `GitDiff.tsx` renders the rows and reuses the conversation `CodeHighlighter` for syntax colors, so files whose language it does not register stay plain.
 
 Focused coverage: `test/git-sidebar.test.ts` and `test/git.test.ts`.
