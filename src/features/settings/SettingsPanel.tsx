@@ -54,6 +54,7 @@ interface SettingsPanelProps {
   dictation: DictationPreferences
   transcriptionStatus: TranscriptionStatus | null
   onDictationChange: (preferences: DictationPreferences) => void
+  onOpenDictationSetup: () => void
   themes: Theme[]
   activeThemeId: string
   onChange: (id: CommandId, shortcut: string) => void
@@ -272,10 +273,11 @@ interface DictationSettingsProps {
   dictation: DictationPreferences
   transcriptionStatus: TranscriptionStatus | null
   onChange: (preferences: DictationPreferences) => void
+  onOpenSetup: () => void
 }
 
 function DictationSettings(
-  { dictation, transcriptionStatus, onChange }: DictationSettingsProps,
+  { dictation, transcriptionStatus, onChange, onOpenSetup }: DictationSettingsProps,
 ) {
   return (
     <section>
@@ -315,6 +317,9 @@ function DictationSettings(
           }`
           : transcriptionStatus.hint}
       </p>
+      <button className='dictation-setup-open' onClick={onOpenSetup} type='button'>
+        {transcriptionStatus?.available ? 'Recheck the local setup' : 'Set up voice dictation'}
+      </button>
     </section>
   )
 }
@@ -388,6 +393,7 @@ export function SettingsPanel({
   dictation,
   transcriptionStatus,
   onDictationChange,
+  onOpenDictationSetup,
   themes,
   activeThemeId,
   onChange,
@@ -474,6 +480,7 @@ export function SettingsPanel({
               <DictationSettings
                 dictation={dictation}
                 onChange={onDictationChange}
+                onOpenSetup={onOpenDictationSetup}
                 transcriptionStatus={transcriptionStatus}
               />
             </TabPanel>

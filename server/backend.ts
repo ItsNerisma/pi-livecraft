@@ -36,6 +36,8 @@ import {
 import { activeSessionMessages, LiveSessionEvents } from './session-snapshot.ts'
 import { loadPromptTemplates, savePromptTemplate } from './prompt-templates.ts'
 import {
+  downloadableModelSizes,
+  downloadWhisperModel,
   loadTranscriptionCleanupSystemPrompt,
   transcribeAudio,
   transcriptionStatus,
@@ -182,6 +184,15 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
 
   if (method === 'GET' && url.pathname === '/api/transcription') {
     sendJson(response, 200, await transcriptionStatus())
+    return
+  }
+
+  if (method === 'POST' && url.pathname === '/api/transcription/model') {
+    const body = await readJsonBody(request)
+    if (typeof body.size !== 'string' || !downloadableModelSizes.includes(body.size)) {
+      throw new HttpError(400, `Model size must be one of: ${downloadableModelSizes.join(', ')}`)
+    }
+    sendJson(response, 200, await downloadWhisperModel(body.size))
     return
   }
 

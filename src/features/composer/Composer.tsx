@@ -73,6 +73,7 @@ export const Composer = memo(function Composer({
   dictation,
   transcriptionStatus,
   onTranscribe,
+  onOpenDictationSetup,
   onSavePrompt,
   onError,
   requestedSelect,
@@ -116,6 +117,8 @@ export const Composer = memo(function Composer({
     audio: Blob,
     options: { clean: boolean; language: string },
   ) => Promise<{ text: string; cleaned: boolean; cleanupError?: string }>
+  /** Opens the guided setup when the local recogniser is not installed yet. */
+  onOpenDictationSetup: () => void
   onSavePrompt: (
     scope: 'global' | 'project',
     name: string,
@@ -493,7 +496,7 @@ export const Composer = memo(function Composer({
   }
 
   const dictationLabel = transcriptionStatus?.available === false
-    ? transcriptionStatus.hint
+    ? 'Set up voice dictation'
     : dictating === 'recording'
     ? 'Stop dictation and insert text'
     : dictating === 'transcribing'
@@ -740,6 +743,20 @@ export const Composer = memo(function Composer({
             </Tooltip>
 
             {running && <BehaviorSelect behavior={behavior} onChange={setBehavior} />}
+            <Tooltip label='Improve prompt'>
+              <ComposerSelect
+                ariaLabel='Improve prompt'
+                disabled={improving || submitting || !message.trim()}
+                onValueChange={handleImproveValueChange}
+                options={improveOptions}
+                loading={improving}
+                placeholder='Improve'
+                tone='improve'
+                value={improvePreset}
+              />
+            </Tooltip>
+          </div>
+          <div className='composer-primary-actions'>
             {dictation.enabled && (
               <Tooltip label={dictationLabel}>
                 <button
@@ -747,10 +764,10 @@ export const Composer = memo(function Composer({
                   className={`icon-button dictation${
                     dictating === 'recording' ? ' recording' : ''
                   }`}
-                  disabled={dictating === 'transcribing' || submitting
-                    || transcriptionStatus?.available === false}
+                  disabled={dictating === 'transcribing' || submitting}
                   onClick={() => {
-                    if (dictating === 'recording') void transcribeDraft()
+                    if (transcriptionStatus?.available === false) onOpenDictationSetup()
+                    else if (dictating === 'recording') void transcribeDraft()
                     else void startDictating()
                   }}
                   type='button'
@@ -771,20 +788,6 @@ export const Composer = memo(function Composer({
                 </button>
               </Tooltip>
             )}
-            <Tooltip label='Improve prompt'>
-              <ComposerSelect
-                ariaLabel='Improve prompt'
-                disabled={improving || submitting || !message.trim()}
-                onValueChange={handleImproveValueChange}
-                options={improveOptions}
-                loading={improving}
-                placeholder='Improve'
-                tone='improve'
-                value={improvePreset}
-              />
-            </Tooltip>
-          </div>
-          <div className='composer-primary-actions'>
             <span className='composer-stop-slot'>
               {running && (
                 <Tooltip label='Stop generation'>

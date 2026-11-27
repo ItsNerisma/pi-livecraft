@@ -1,6 +1,16 @@
 import { spawn } from 'node:child_process'
 import { constants } from 'node:fs'
-import { access, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  open,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
 
@@ -15,7 +25,23 @@ const modelDirectoryNames = [
   'whisper.cpp/models',
   '.cache/whisper.cpp/models',
   '.local/share/whisper.cpp/models',
+  'pi-livecraft/models',
 ]
+
+/** Models the guided setup can download, with the upstream whispering.cpp repository names. */
+const downloadableModels: Record<string, { file: string; megabytes: number }> = {
+  tiny: { file: 'ggml-tiny.bin', megabytes: 77 },
+  base: { file: 'ggml-base.bin', megabytes: 148 },
+  small: { file: 'ggml-small.bin', megabytes: 488 },
+}
+
+/** Hard ceiling for one model download, so a wrong response cannot fill the disk. */
+const maxModelBytes = 1_200_000_000
+
+/** Model sizes the guided setup offers, smallest first. */
+export const downloadableModelSizes = Object.keys(downloadableModels)
+
+const modelBaseUrl = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main'
 
 /** Audio formats the browser recorder can produce, keyed by MIME type. */
 const audioFormats: Record<string, string> = {
@@ -36,6 +62,14 @@ export interface TranscriptionStatus {
   ffmpeg: boolean
   /** Human-readable remediation shown in the UI when `available` is false. */
   hint: string
+  /** Shell command that installs whisper.cpp on this host, when one is known. */
+  binaryInstall: string | null
+  /** Shell command that installs ffmpeg on this host, when one is known. */
+  ffmpegInstall: string | null
+  /** Directory where the guided setup stores a downloaded model. */
+  modelDirectory: string
+  /** Models the guided setup can download, smallest first. */
+  modelOptions: { size: string; megabytes: number }[]
 }
 
 const installHint =
@@ -63,7 +97,83 @@ export async function transcriptionStatus(
     model,
     ffmpeg: ffmpeg !== null,
     hint: available ? '' : installHint,
+    binaryInstall: installCommand('whisper.cpp', 'whisper-cpp'),
+    ffmpegInstall: installCommand('ffmpeg', 'ffmpeg'),
+    modelDirectory: modelDownloadDirectory(env),
+    modelOptions: Object.entries(downloadableModels).map(([size, entry]) => ({
+      size,
+      megabytes: entry.megabytes,
+    })),
   }
+}
+
+/** Returns the package command for this host, or null when no package is known. */
+function installCommand(linuxPackage: string, brewPackage: string): string | null {
+  if (process.platform === 'darwin') return `brew install ${brewPackage}`
+  if (process.platform === 'linux') return `sudo apt install ${linuxPackage}`
+  return null
+}
+
+/** Returns the directory where the guided setup writes downloaded models. */
+export function modelDownloadDirectory(env: NodeJS.ProcessEnv = process.env): string {
+  const dataHome = env.XDG_DATA_HOME || join(homedir(), '.local/share')
+  return join(dataHome, 'pi-livecraft', 'models')
+}
+
+/** In-flight downloads, so two clicks cannot fetch the same model twice. */
+const modelDownloads = new Map<string, Promise<string>>()
+
+/**
+ * Downloads one whisper.cpp model into the managed model directory.
+ *
+ * The model never enters the repository: it lands under the user's data
+ * directory, and the download becomes visible to `resolveWhisperModel`
+ * immediately. An existing file is reused without any network access.
+ */
+export async function downloadWhisperModel(
+  size: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<{ model: string }> {
+  const entry = downloadableModels[size]
+  if (!entry) throw new Error(`Unsupported model size: ${size}`)
+  const directory = modelDownloadDirectory(env)
+  const target = join(directory, entry.file)
+  if (await isReadableFile(target)) return { model: target }
+  const pending = modelDownloads.get(target)
+  if (pending) return { model: await pending }
+  const download = fetchModel(join(modelBaseUrl, entry.file), directory, target)
+  modelDownloads.set(target, download)
+  try {
+    return { model: await download }
+  } finally {
+    modelDownloads.delete(target)
+  }
+}
+
+/** Streams one model file to disk and only reveals it once the body is complete. */
+async function fetchModel(url: string, directory: string, target: string): Promise<string> {
+  await mkdir(directory, { recursive: true })
+  const response = await fetch(url)
+  if (!response.ok || !response.body) {
+    throw new Error(`Model download failed (${response.status} ${response.statusText})`)
+  }
+  const part = `${target}.part`
+  const file = await open(part, 'w')
+  let received = 0
+  try {
+    for await (const chunk of response.body) {
+      received += chunk.length
+      if (received > maxModelBytes) throw new Error('Model download exceeded the size limit')
+      await file.write(chunk)
+    }
+  } catch (error) {
+    await file.close()
+    await rm(part, { force: true })
+    throw error
+  }
+  await file.close()
+  await rename(part, target)
+  return target
 }
 
 /** Returns the configured whisper.cpp binary or the first one found on `PATH`. */

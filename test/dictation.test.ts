@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict'
-import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import {
   audioExtension,
+  modelDownloadDirectory,
   parseWhisperOutput,
+  resolveWhisperModel,
   transcriptionStatus,
 } from '../server/features/dictation/transcription.ts'
 
@@ -67,6 +69,20 @@ test('detects an installed binary, model, and ffmpeg', async () => {
     assert.equal(status.model, model)
     assert.equal(status.ffmpeg, true)
     assert.equal(status.hint, '')
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+test('resolves a model downloaded into the managed model directory', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'pi-livecraft-whisper-model-'))
+  try {
+    const managed = join(directory, 'pi-livecraft', 'models')
+    await mkdir(managed, { recursive: true })
+    const model = join(managed, 'ggml-base.bin')
+    await writeFile(model, '')
+    assert.equal(modelDownloadDirectory({ XDG_DATA_HOME: directory }), managed)
+    assert.equal(await resolveWhisperModel({ XDG_DATA_HOME: directory }), model)
   } finally {
     await rm(directory, { recursive: true, force: true })
   }

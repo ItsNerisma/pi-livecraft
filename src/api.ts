@@ -300,11 +300,29 @@ export interface TranscriptionStatus {
   ffmpeg: boolean
   /** Remediation shown when local dictation cannot run. */
   hint: string
+  /** Shell command that installs whisper.cpp on this host, when known. */
+  binaryInstall: string | null
+  /** Shell command that installs ffmpeg on this host, when known. */
+  ffmpegInstall: string | null
+  /** Directory the guided setup downloads models into. */
+  modelDirectory: string
+  /** Models the guided setup can download, smallest first. */
+  modelOptions: { size: string; megabytes: number }[]
 }
 
 /** Reads whether local dictation can run on this machine. */
 export async function fetchTranscriptionStatus(): Promise<TranscriptionStatus> {
   return request<TranscriptionStatus>('/api/transcription')
+}
+
+/** Downloads one whisper.cpp model into the user's data directory. */
+export async function downloadTranscriptionModel(
+  size: 'tiny' | 'base' | 'small',
+): Promise<{ model: string }> {
+  return request<{ model: string }>('/api/transcription/model', {
+    method: 'POST',
+    body: JSON.stringify({ size }),
+  })
 }
 
 /**

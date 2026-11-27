@@ -221,7 +221,7 @@ When these extensions are installed and configured in Pi, Livecraft already cont
 - A new session cannot answer: launch Pi once, configure a provider with `/login`, and verify that the `/agent` extension is available if your setup expects it.
 - Native Windows desktop actions unavailable: verify that Windows PowerShell is available. Terminal selection tries Windows Terminal, Alacritty, WezTerm, PowerShell 7, Windows PowerShell, then Command Prompt.
 - Linux desktop actions unavailable: install or expose `xdg-open` and `x-terminal-emulator` in `PATH`.
-- Voice dictation unavailable: install `whisper.cpp` and download a model, or point `PI_LIVECRAFT_WHISPER_BIN` and `PI_LIVECRAFT_WHISPER_MODEL` at existing ones. `ffmpeg` is required to convert the recording; the Dictation settings tab reports exactly what is missing.
+- Voice dictation unavailable: open the guided setup from the microphone button or the Dictation settings tab. It reports each missing prerequisite, copies the package command, and downloads a model into `~/.local/share/pi-livecraft/models`; point `PI_LIVECRAFT_WHISPER_BIN` or `PI_LIVECRAFT_WHISPER_MODEL` at an existing install instead if you prefer. `ffmpeg` is required to convert the recording.
 - WSL desktop actions unavailable: verify that `explorer.exe`, `wslpath`, and `wt.exe` are available in the WSL `PATH`.
 
 </details>

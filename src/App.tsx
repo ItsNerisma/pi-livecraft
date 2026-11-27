@@ -3,6 +3,7 @@ import './App.css'
 import {
   commitChanges,
   discardChanges,
+  downloadTranscriptionModel,
   fetchTranscriptionStatus,
   getGitFileDiff,
   getGitSnapshot,
@@ -31,6 +32,7 @@ import type {
 } from '../shared/types.ts'
 import { isObject } from '../shared/is-object.ts'
 import { Composer } from './features/composer/Composer.tsx'
+import { DictationSetupDialog } from './features/composer/DictationSetupDialog.tsx'
 import {
   readDictationPreferences,
   writeDictationPreferences,
@@ -204,20 +206,24 @@ function App() {
   const [terminalCommand, setTerminalCommand] = useState(() => readTerminalCommand())
   const [dictation, setDictation] = useState(() => readDictationPreferences())
   const [transcriptionStatus, setTranscriptionStatus] = useState<TranscriptionStatus | null>(null)
+  const [dictationSetupOpen, setDictationSetupOpen] = useState(false)
 
-  // Local dictation prerequisites are detected once: they only change when the user installs whisper.cpp.
+  /** Re-reads the local dictation prerequisites; the setup dialog uses it to confirm an install. */
+  const refreshTranscriptionStatus = useCallback(async () => {
+    setTranscriptionStatus(await fetchTranscriptionStatus())
+  }, [])
+
+  // Prerequisites only change when the user installs whisper.cpp or downloads a model.
   useEffect(() => {
-    let active = true
-    void fetchTranscriptionStatus()
-      .then((status) => {
-        if (active) setTranscriptionStatus(status)
-      })
-      .catch(() => {
-        if (active) setTranscriptionStatus(null)
-      })
-    return () => {
-      active = false
+    void refreshTranscriptionStatus().catch(() => setTranscriptionStatus(null))
+  }, [refreshTranscriptionStatus])
+
+  /** Downloads one whisper.cpp model; the setup dialog refreshes the status afterwards. */
+  const handleDownloadModel = useCallback(async (size: string) => {
+    if (size !== 'tiny' && size !== 'base' && size !== 'small') {
+      throw new Error(`Unknown model size: ${size}`)
     }
+    await downloadTranscriptionModel(size)
   }, [])
 
   // Workspace and session synchronization
@@ -1342,6 +1348,7 @@ function App() {
                       dictation={dictation}
                       transcriptionStatus={transcriptionStatus}
                       onTranscribe={handleTranscription}
+                      onOpenDictationSetup={() => setDictationSetupOpen(true)}
                       onSavePrompt={handleSavePrompt}
                       onError={handleConversationError}
                       requestedSelect={requestedSelect}
@@ -1513,6 +1520,7 @@ function App() {
           dictation={dictation}
           transcriptionStatus={transcriptionStatus}
           onDictationChange={handleDictationChange}
+          onOpenDictationSetup={() => setDictationSetupOpen(true)}
           themes={allThemes(themePreferences)}
           activeThemeId={activeTheme.id}
           onChange={(id, shortcut) => {
@@ -1535,6 +1543,15 @@ function App() {
             window.localStorage.setItem('pi-livecraft.shortcuts', JSON.stringify(defaultShortcuts))
           }}
           onClose={() => setSettingsOpen(false)}
+        />
+      )}
+      {dictationSetupOpen && (
+        <DictationSetupDialog
+          onClose={() => setDictationSetupOpen(false)}
+          onDownloadModel={handleDownloadModel}
+          onError={(cause) => showToast('error', messageOf(cause))}
+          onRefresh={refreshTranscriptionStatus}
+          status={transcriptionStatus}
         />
       )}
     </div>

@@ -52,6 +52,7 @@ App.tsx  ──props──→  Composer.tsx  ──onSend / onCommand / onAbort�
 | `dictation` | Voice-input preferences (`pi-livecraft.dictation`) owned by `App.tsx` |
 | `transcriptionStatus` | Backend whisper.cpp prerequisites, or `null` while unknown |
 | `onTranscribe(audio, options)` | Transcribe one recorded clip |
+| `onOpenDictationSetup()` | Opens the guided whisper.cpp setup when dictation is unavailable |
 | `onSavePrompt(scope, name, content)` | Persist a prompt template globally or for the project |
 | `onError(cause)` | Report an error to the notification stack |
 
