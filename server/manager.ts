@@ -618,6 +618,7 @@ async function runPrompt(request: ManagerRequest): Promise<{ text: string }> {
     systemPrompt: typeof request.systemPrompt === 'string' ? request.systemPrompt : undefined,
     thinkingLevel: typeof request.thinkingLevel === 'string' ? request.thinkingLevel : undefined,
     model: isModelOption(request.model) ? request.model : undefined,
+    preferredModel: isModelOption(request.preferredModel) ? request.preferredModel : undefined,
     extensions: Array.isArray(request.extensions)
       ? request.extensions.filter((e): e is string => typeof e === 'string')
       : undefined,

@@ -90,6 +90,26 @@ async function listEntries(
   }
 }
 
+/** Uses a preferred configured model when present, otherwise the cheapest usable model. */
+export function selectAvailableModel(
+  response: JsonObject,
+  preferred?: { provider: string; modelId: string },
+): { id: string; provider: string } | undefined {
+  if (preferred && isObject(response.data) && Array.isArray(response.data.models)) {
+    const model = response
+      .data
+      .models
+      .filter(isModel)
+      .find((candidate) =>
+        candidate.provider === preferred.provider
+        && candidate.id === preferred.modelId
+      )
+    if (model) return { id: model.id, provider: model.provider }
+  }
+  const cheapest = cheapestAvailableModel(response)
+  return cheapest ? { id: cheapest.id, provider: cheapest.provider } : undefined
+}
+
 /** Selects the cheapest usable model with the same deterministic ordering as pi-auto-title. */
 export function cheapestAvailableModel(
   response: JsonObject,

@@ -23,7 +23,7 @@ The guided setup writes models into `<XDG_DATA_HOME or ~/.local/share>/pi-livecr
 
 ## Cleanup
 
-The cleanup pass is a short-lived isolated Pi prompt that edits surface only: punctuation, hesitations, explicit self-corrections, and unambiguous misheard identifiers. It must never reword, answer, or add facts. A failed or empty rewrite returns the raw transcript with `cleanupError`, so a dictation is never lost.
+The cleanup pass is a short-lived isolated Pi prompt with tools, extensions, and context files disabled. It prefers `opencode-go/minimax-m3.1-flash` when available, then falls back to the cheapest configured model. It edits surface only: punctuation, hesitations, explicit self-corrections, and unambiguous misheard identifiers. It must never reword, answer, or add facts. A failed or empty rewrite returns the raw transcript with `cleanupError`, so a dictation is never lost.
 
 ## Tests
 

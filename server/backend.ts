@@ -618,6 +618,8 @@ async function cleanDictation(
       prompt: `<transcript>\n${transcript}\n</transcript>`,
       systemPrompt,
       thinkingLevel: 'off',
+      // Prefer a tested fast model; the isolated runner falls back if it is not configured.
+      preferredModel: { provider: 'opencode-go', modelId: 'minimax-m3.1-flash' },
       includeContextFiles: false,
     }, 2 * 60_000)
     const cleaned = isObject(data) && typeof data.text === 'string' ? data.text.trim() : ''
