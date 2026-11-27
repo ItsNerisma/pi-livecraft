@@ -307,6 +307,7 @@ export async function transcribeAudio(
       wav,
     ], 60_000)
     // `-mc 0` disables cross-segment context so a noisy clip cannot drift into invented text.
+    // The timeout stays generous for the ~8 minute upload cap but still fails fast on a hang.
     const output = await runProcess(status.binary, [
       '-m',
       status.model,
@@ -318,7 +319,7 @@ export async function transcribeAudio(
       '-np',
       '-mc',
       '0',
-    ], 180_000)
+    ], 300_000)
     const text = parseWhisperOutput(output)
     if (!text) throw new Error('No speech was recognised in the recording')
     return text

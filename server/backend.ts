@@ -52,8 +52,11 @@ import type {
 } from '../shared/types.ts'
 import { isObject } from '../shared/is-object.ts'
 
-/** Maximum base64-encoded recording accepted for one dictation, well under the JSON body limit. */
-const maxDictationBytes = 1_000_000
+/**
+ * Maximum decoded audio accepted for one dictation. Base64 inflates it by a third, so this stays
+ * below the shared 2 MiB request-body limit; at the recorder's 24 kbit/s it is roughly 8 minutes.
+ */
+const maxDictationBytes = 1_500_000
 
 const host = '127.0.0.1'
 const port = readPort('PI_LIVECRAFT_BACKEND_PORT', 43_121)

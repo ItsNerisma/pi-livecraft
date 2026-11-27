@@ -82,7 +82,11 @@ export async function startDictation(): Promise<DictationRecording> {
     audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
   })
   const mimeType = mimeCandidates.find((candidate) => MediaRecorder.isTypeSupported(candidate))
-  const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+  // Speech stays intelligible at a low bitrate, which keeps long dictations inside the upload cap.
+  const recorder = new MediaRecorder(stream, {
+    ...(mimeType ? { mimeType } : {}),
+    audioBitsPerSecond: 24_000,
+  })
   const chunks: Blob[] = []
   const release = () => stream.getTracks().forEach((track) => track.stop())
 
