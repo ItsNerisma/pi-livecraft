@@ -22,6 +22,7 @@ All data arrives through props. The Composer never calls the backend directly.
 | `composer-dictation.ts` | Microphone recording, `pi-livecraft.dictation` preferences |
 | `DictationSetupDialog.tsx` | Guided whisper.cpp setup: prerequisite checklist, copiable command, model download |
 | `composer-utils.ts` | Label/token formatting, command detection, compact-command fallback, prompt delivery mapping, draft loading, `isObject` |
+| `goal-mode.ts` | Bounds recent text evidence and parses strict isolated-review verdicts |
 | `prompt-title.ts` | Immediate session title, replaced later by Pi's extension title |
 | `selects/ComposerSelect.tsx` | Generic Radix Select wrapper with tone-based icons |
 | `selects/AgentSelect.tsx` | Agent picker — derives label from options, calls `onAgentChange` |
@@ -39,6 +40,7 @@ All data arrives through props. The Composer never calls the backend directly.
   (`pi-livecraft.composer-draft.<sessionId>`).
 - `slashOpen`, `slashFilter`, `slashIndex` — slash-command popover.
 - `openSelect` — which dropdown (agent/model/thinking) is open.
+- Goal mode is owned by `App.tsx` per session. The composer toggle arms an objective; each settled run is reviewed in an isolated, tool-free Pi process using recent text evidence. Incomplete goals continue with the reviewer's next action, up to five checks; disabling goal mode or aborting clears the loop.
 - `behavior` — `steer`, `interrupt`, or `followUp`; only visible while Pi is running.
   `steer` and `followUp` travel as `streamingBehavior`; `interrupt` sends `abort`
   first, waits for Pi to become idle, then sends a plain `prompt`.

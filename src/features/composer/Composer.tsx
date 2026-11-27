@@ -69,6 +69,7 @@ export const Composer = memo(function Composer({
   running,
   compacting,
   goalMode,
+  goalStatus,
   onGoalModeChange,
   onSend,
   onAbort,
@@ -101,6 +102,7 @@ export const Composer = memo(function Composer({
   running: boolean
   compacting: boolean
   goalMode: boolean
+  goalStatus: string | null
   onGoalModeChange: (enabled: boolean) => void
   onSend: (
     message: string,
@@ -707,14 +709,19 @@ export const Composer = memo(function Composer({
           <div className='composer-tools'>
             <Tooltip label={goalMode ? 'Disable goal mode' : 'Enable goal mode'}>
               <button
+                aria-label={goalMode ? 'Disable goal mode' : 'Enable goal mode'}
                 aria-pressed={goalMode}
-                className={`icon-button goal-toggle${goalMode ? ' active' : ''}`}
+                className={`goal-toggle${goalMode ? ' active' : ''}`}
                 onClick={() => onGoalModeChange(!goalMode)}
                 type='button'
               >
+                <svg aria-hidden='true' viewBox='0 0 16 16'>
+                  <path d='M8 1.5 9.6 6.4 14.5 8l-4.9 1.6L8 14.5l-1.6-4.9L1.5 8l4.9-1.6L8 1.5Z' />
+                </svg>
                 Goal
               </button>
             </Tooltip>
+            {goalStatus && <span className='composer-goal-status'>{goalStatus}</span>}
             {showAgentSelector && (
               <AgentSelect
                 agentOptions={agentOptions}

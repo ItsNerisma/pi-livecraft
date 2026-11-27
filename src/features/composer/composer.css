@@ -371,17 +371,55 @@
   min-width: 0;
 }
 .goal-toggle {
-  width: auto;
-  min-width: 44px;
-  padding: 0 8px;
-  font-size: 11px;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  gap: 5px;
+  height: 30px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  padding: 0 9px;
+  background: var(--surface);
+  color: var(--muted);
+  font: 600 11px ui-sans-serif, system-ui, sans-serif;
   white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
 }
-.goal-toggle[aria-pressed="true"] {
+.goal-toggle svg {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
+}
+.goal-toggle:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line-strong));
+  color: var(--ink);
+}
+.goal-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.goal-toggle:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.goal-toggle.active {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent);
+}
+.composer-goal-status {
+  align-self: center;
+  max-width: 180px;
+  overflow: hidden;
+  color: var(--accent);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .composer-primary-actions {
   display: flex;
