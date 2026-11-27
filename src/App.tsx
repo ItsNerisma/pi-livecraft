@@ -8,7 +8,9 @@ import {
   getGitFileDiff,
   getGitSnapshot,
   getQuotas,
+  getSnapshot,
   improvePrompt,
+  runPrompt,
   openExplorer,
   openTerminal,
   pushCommits,
@@ -131,6 +133,8 @@ function nextConversationView(current: ConversationView): ConversationView {
 function App() {
   // Workspace and sessions
   const [compactingSessionIds, setCompactingSessionIds] = useState<ReadonlySet<string>>(new Set())
+  const [goalMode, setGoalMode] = useState(false)
+  const goalRef = useRef<{ sessionId: string; objective: string; checks: number } | null>(null)
 
   // Conversation and Pi lifecycle
   const [piConnection, setPiConnection] = useState<PiConnection>('connecting')
@@ -654,6 +658,40 @@ function App() {
       }
       if (event.type === 'agent_start') updateSession(sessionId, { status: 'running' })
       if (event.type === 'agent_settled') {
+        const goal = goalRef.current
+        if (goal?.sessionId === sessionId && goal.checks < 5) {
+          goal.checks += 1
+          void getSnapshot(sessionId)
+            .then((snapshot) =>
+              runPrompt(sessionId, {
+                prompt:
+                  `Evaluate whether this objective is fully complete using the conversation evidence below. Return exactly COMPLETE only when the evidence proves completion. Otherwise return INCOMPLETE followed by the single most useful next action.\n\nObjective: ${goal.objective}\n\nRecent conversation evidence:\n${
+                    JSON.stringify(snapshot.messages.slice(-20))
+                  }`,
+                tools: [],
+              })
+            )
+            .then(async (result) => {
+              if (goalRef.current !== goal) return
+              if (/^\s*COMPLETE\b/i.test(result)) {
+                goalRef.current = null
+                setGoalMode(false)
+                return
+              }
+              if (goal.checks < 5) {
+                await sendPiCommand(sessionId, {
+                  type: 'prompt',
+                  message:
+                    `Continue working toward this objective. Address the verification feedback, then implement and verify the result.\n\nObjective: ${goal.objective}\n\nVerification feedback: ${result}`,
+                })
+              } else {
+                goalRef.current = null
+                setGoalMode(false)
+                showToast('notice', 'Goal paused after 5 verification cycles.', sessionId)
+              }
+            })
+            .catch((cause) => showToast('error', messageOf(cause), sessionId))
+        }
         updateSession(sessionId, { status: 'idle' })
         // Supersede any in-flight session refresh that may have captured the pre-settle `running`
         // status; otherwise the completed-plan visibility rule can remain stuck until page reload.
@@ -868,7 +906,15 @@ function App() {
       // `abort` answers once Pi is idle, so the prompt below starts a fresh run instead of
       // queueing behind the turn the user chose to interrupt.
       if (delivery.abort) await sendPiCommand(selectedId, { type: 'abort' })
-      const command: JsonObject = { type: 'prompt', message, images }
+      if (goalMode && !isCommand)
+        goalRef.current = { sessionId: selectedId, objective: message, checks: 0 }
+      const command: JsonObject = {
+        type: 'prompt',
+        message: goalMode && !isCommand
+          ? `${message}\n\nWork toward this objective persistently. Before stopping, ensure the result is verified and all stated requirements are met.`
+          : message,
+        images,
+      }
       if (delivery.streamingBehavior) command.streamingBehavior = delivery.streamingBehavior
       const isSteering = delivery.streamingBehavior === 'steer'
       const composerSessionIsSelected = selectedIdRef.current === selectedId
@@ -898,6 +944,7 @@ function App() {
     [
       addOptimisticUserMessage,
       addPendingSteering,
+      goalMode,
       nameSessionFromFirstPrompt,
       refreshSessions,
       removeLiveMessage,
@@ -1353,6 +1400,8 @@ function App() {
                         || snapshot.commands.some((command) => command.name === 'agent')}
                       running={agentTurnRunning}
                       compacting={displayedActivity?.kind === 'compacting'}
+                      goalMode={goalMode}
+                      onGoalModeChange={setGoalMode}
                       onSend={handleComposerSend}
                       onAbort={handleComposerAbort}
                       onImprovePrompt={handlePromptImprovement}

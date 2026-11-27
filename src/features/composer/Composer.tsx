@@ -68,6 +68,8 @@ export const Composer = memo(function Composer({
   commands,
   running,
   compacting,
+  goalMode,
+  onGoalModeChange,
   onSend,
   onAbort,
   onImprovePrompt,
@@ -98,6 +100,8 @@ export const Composer = memo(function Composer({
   commands: JsonObject[]
   running: boolean
   compacting: boolean
+  goalMode: boolean
+  onGoalModeChange: (enabled: boolean) => void
   onSend: (
     message: string,
     images: JsonObject[],
@@ -701,6 +705,16 @@ export const Composer = memo(function Composer({
       <div className='composer-footer'>
         <div className='composer-actions'>
           <div className='composer-tools'>
+            <Tooltip label={goalMode ? 'Disable goal mode' : 'Enable goal mode'}>
+              <button
+                aria-pressed={goalMode}
+                className={`icon-button goal-toggle${goalMode ? ' active' : ''}`}
+                onClick={() => onGoalModeChange(!goalMode)}
+                type='button'
+              >
+                Goal
+              </button>
+            </Tooltip>
             {showAgentSelector && (
               <AgentSelect
                 agentOptions={agentOptions}
