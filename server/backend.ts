@@ -54,9 +54,9 @@ import { isObject } from '../shared/is-object.ts'
 
 /**
  * Maximum decoded audio accepted for one dictation. Base64 inflates it by a third, so this stays
- * below the shared 2 MiB request-body limit; at the recorder's 24 kbit/s it is roughly 8 minutes.
+ * below the shared 4 MiB request-body limit; at the recorder's 48 kbit/s it is roughly 8 minutes.
  */
-const maxDictationBytes = 1_500_000
+const maxDictationBytes = 3_000_000
 
 const host = '127.0.0.1'
 const port = readPort('PI_LIVECRAFT_BACKEND_PORT', 43_121)
@@ -667,7 +667,7 @@ async function readJsonBody(request: IncomingMessage): Promise<JsonObject> {
   for await (const chunk of request) {
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
     size += buffer.length
-    if (size > 2 * 1024 * 1024) throw new HttpError(413, 'Request body exceeds 2 MiB')
+    if (size > 4 * 1024 * 1024) throw new HttpError(413, 'Request body exceeds 4 MiB')
     chunks.push(buffer)
   }
   try {
