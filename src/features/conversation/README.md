@@ -29,6 +29,10 @@ Styles are split by the same surfaces: `conversation.css` for the shell, viewpor
 
 Conversation views are simplified (messages only), semi-detailed (tool headers only; expanded calls show their full output with the existing scroll limits), or detailed (calls with their previews).
 
+## History rendering
+
+The thread mounts recent history first and leaves older messages unmounted until the reader scrolls up near the top or jumps to an older target. Scrolling prepends one bounded batch without moving the messages already in view. A jump mounts the range from its target forward; the rail and session analysis still cover the full history.
+
 ## User message rail
 
 `UserMessageRail.tsx` renders marks in the thread gutter, one per user prompt. Hovering previews the prompt text and its send time through the shared `Tooltip`; clicking scrolls the thread back to that message and highlights it.

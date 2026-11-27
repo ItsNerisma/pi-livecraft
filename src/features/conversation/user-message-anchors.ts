@@ -8,6 +8,8 @@ export interface UserMessageAnchor {
   /** Single-line prompt text, or a label when the message only carries attachments. */
   preview: string
   timestamp?: number
+  /** First history index to mount if this prompt is not yet rendered. */
+  historyIndex?: number
   /** Selector of the rendered thread entry, used to scroll back to the prompt. */
   selector: string
   /** Highlight key shared with thread navigation. */
@@ -31,6 +33,7 @@ export function userMessageAnchors(
       key: entry.key,
       preview: messageText(message.content).replace(/\s+/g, ' ').trim() || ATTACHMENT_PREVIEW,
       timestamp,
+      ...(entry.source === 'history' ? { historyIndex: entry.historyIndex } : {}),
       selector: entry.source === 'history'
         ? `[data-message-index="${entry.historyIndex}"]`
         : `[data-message-key="${entry.key}"]`,

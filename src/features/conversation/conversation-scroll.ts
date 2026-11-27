@@ -1,4 +1,5 @@
 const NEAR_BOTTOM_THRESHOLD = 50
+const NEAR_TOP_THRESHOLD = 50
 const HISTORY_RENDER_BATCH_SIZE = 50
 
 /** Finds a bounded recent render boundary, preferring a nearby complete user turn. */
@@ -14,6 +15,11 @@ export function conversationHistoryStart(
     if (messages[index]?.role === 'user') return index
   }
   return tentativeStart
+}
+
+/** Requests another batch only when older history is hidden and the viewport is near its start. */
+export function shouldRevealOlderHistory(historyStart: number, scrollTop: number): boolean {
+  return historyStart > 0 && scrollTop <= NEAR_TOP_THRESHOLD
 }
 
 /** True when the viewport is within the threshold of the conversation bottom. */

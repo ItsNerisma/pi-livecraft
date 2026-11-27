@@ -4,6 +4,7 @@ import {
   conversationHistoryStart,
   isNearConversationBottom,
   resumesAutoScrollAfterDownwardScroll,
+  shouldRevealOlderHistory,
   suspendsAutoScrollAfterUpwardScroll,
 } from '../src/features/conversation/conversation-scroll.ts'
 
@@ -24,6 +25,13 @@ test('conversationHistoryStart bounds a long turn and history without users', ()
   assert.equal(conversationHistoryStart(longTurn, longTurn.length), 70)
   assert.equal(conversationHistoryStart(longTurn, 70), 10)
   assert.equal(conversationHistoryStart(withoutUser, withoutUser.length), 70)
+})
+
+test('reveals hidden history only near the top of the thread', () => {
+  assert.equal(shouldRevealOlderHistory(120, 0), true)
+  assert.equal(shouldRevealOlderHistory(120, 50), true)
+  assert.equal(shouldRevealOlderHistory(120, 51), false)
+  assert.equal(shouldRevealOlderHistory(0, 0), false)
 })
 
 test('isNearConversationBottom identifies viewport proximity to conversation bottom', () => {

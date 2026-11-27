@@ -1,8 +1,8 @@
 import {
   Fragment,
-  startTransition,
   useCallback,
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -37,6 +37,7 @@ import {
 import {
   conversationHistoryStart,
   resumesAutoScrollAfterDownwardScroll,
+  shouldRevealOlderHistory,
   suspendsAutoScrollAfterUpwardScroll,
 } from './conversation-scroll.ts'
 
@@ -46,6 +47,9 @@ interface ThreadNavigation {
   block: ScrollLogicalPosition
   highlight: string
 }
+
+/** Gives the browser time to start native wheel, key, or touch scrolling. */
+const upwardScrollIntentWindowMs = 200
 
 /** Assembles history, the live stream, and tool executions according to the selected detail level. */
 export function Conversation(
@@ -98,17 +102,20 @@ export function Conversation(
     : lastUserEntry
     ? allMessages.length
     : -1
-  const { visibleMessages, toolCallIds, resultsByCallId } = useMemo(
+  const { visibleMessages, toolHistoryIndexes, resultsByCallId } = useMemo(
     () => {
       const visible = allMessages.filter(isVisibleConversationMessage)
-      const calls = allMessages.flatMap(toolCallsInMessage)
+      const toolHistoryIndexes = new Map<string, number>()
+      allMessages.forEach((message, index) => {
+        for (const call of toolCallsInMessage(message)) toolHistoryIndexes.set(call.id, index)
+      })
       const results = new Map(allMessages.flatMap((message) => {
         const result = toolResultInMessage(message)
         return result ? [[result.toolCallId, result] as const] : []
       }))
       return {
         visibleMessages: visible,
-        toolCallIds: new Set(calls.map((call) => call.id)),
+        toolHistoryIndexes,
         resultsByCallId: results,
       }
     },
@@ -203,26 +210,25 @@ export function Conversation(
   const visibleLiveMessages = messageEntries.filter((entry) => entry.source === 'live')
   const conversationRef = useRef<HTMLDivElement>(null)
   const conversationContentRef = useRef<HTMLDivElement>(null)
+  const prependAnchorRef = useRef<{ element: HTMLElement; top: number } | undefined>(undefined)
   const autoScrollRef = useRef(true)
   const previousScrollTopRef = useRef(0)
-  const upwardScrollIntentRef = useRef(false)
+  const upwardScrollIntentUntilRef = useRef(0)
   /** Prevents onScroll from re-enabling auto-scroll during a navigation scroll. */
   const navigationInProgressRef = useRef(false)
   const [showScrollToBottom, setShowScrollToBottom] = useState(false)
   const [highlightedTarget, setHighlightedTarget] = useState<string>()
   const [navigation, setNavigation] = useState<ThreadNavigation>()
 
-  /** Mounts older history in bounded batches after the recent conversation has painted. */
-  useEffect(() => {
-    if (renderedHistoryStart === 0) return
-    const nextHistoryStart = conversationHistoryStart(allMessages, renderedHistoryStart)
-    const frame = window.requestAnimationFrame(() => {
-      startTransition(() => {
-        setHistoryStart((current) => Math.min(current, nextHistoryStart))
-      })
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [allMessages, renderedHistoryStart])
+  /** Preserves the reading position if the browser did not already anchor the prepend. */
+  useLayoutEffect(() => {
+    const anchor = prependAnchorRef.current
+    prependAnchorRef.current = undefined
+    const conversation = conversationRef.current
+    if (!conversation || !anchor?.element.isConnected) return
+    conversation.scrollTop += anchor.element.getBoundingClientRect().top - anchor.top
+    previousScrollTopRef.current = conversation.scrollTop
+  }, [renderedHistoryStart])
 
   /** Keeps a followed conversation pinned to its latest rendered content before paint. */
   const scrollToLiveBottom = useCallback(() => {
@@ -254,24 +260,30 @@ export function Conversation(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollToBottomRequest])
 
-  /** Routes session-analysis requests through the same scroll path as the thread rail. */
-  useLayoutEffect(() => {
-    if (!navigationRequest) return
-    setNavigation(navigationForTarget(navigationRequest.target))
-  }, [navigationRequest])
-
-  /** Reveals a user prompt chosen in the thread rail. */
-  const navigateToAnchor = useCallback((anchor: UserMessageAnchor) => {
-    setNavigation({ selector: anchor.selector, block: 'end', highlight: anchor.highlight })
+  /** Mounts only the missing range needed to reach a navigation target. */
+  const navigateTo = useCallback((destination: ThreadNavigation, historyIndex?: number) => {
+    if (historyIndex !== undefined) setHistoryStart((current) => Math.min(current, historyIndex))
+    setNavigation(destination)
   }, [])
 
-  // Mount hidden targets first, then disable resize-driven live scrolling before navigation.
+  const navigateToAnalysis = useEffectEvent((target: SessionAnalysisTarget) => {
+    const historyIndex = target.kind === 'tool' ? toolHistoryIndexes.get(target.id) : target.index
+    navigateTo(navigationForTarget(target), historyIndex)
+  })
+  useLayoutEffect(() => {
+    if (navigationRequest) navigateToAnalysis(navigationRequest.target)
+  }, [navigationRequest])
+
+  const navigateToAnchor = useCallback((anchor: UserMessageAnchor) => {
+    navigateTo(
+      { selector: anchor.selector, block: 'end', highlight: anchor.highlight },
+      anchor.historyIndex,
+    )
+  }, [navigateTo])
+
+  // Disable resize-driven live scrolling before revealing the mounted target.
   useLayoutEffect(() => {
     if (!navigation) return
-    if (renderedHistoryStart > 0) {
-      setHistoryStart(0)
-      return
-    }
     const { block, highlight, selector } = navigation
     const conversation = conversationRef.current
     const target = conversation?.querySelector<HTMLElement>(selector)
@@ -333,7 +345,19 @@ export function Conversation(
       window.clearTimeout(highlightTimeout)
       navigationInProgressRef.current = false
     }
-  }, [navigation, renderedHistoryStart])
+  }, [navigation])
+
+  /** Reveals one older batch on demand without moving the currently displayed messages. */
+  function revealOlderHistory(conversation: HTMLDivElement): void {
+    if (!shouldRevealOlderHistory(renderedHistoryStart, conversation.scrollTop)) return
+    if (navigationInProgressRef.current) return
+    suspendAutoScroll()
+    const element = conversationContentRef.current?.querySelector<HTMLElement>(
+      '[data-message-index]',
+    )
+    if (element) prependAnchorRef.current = { element, top: element.getBoundingClientRect().top }
+    setHistoryStart(conversationHistoryStart(allMessages, renderedHistoryStart))
+  }
 
   /** Tracks scrolling without mistaking layout-driven Markdown reflows for user input. */
   function handleConversationScroll(): void {
@@ -342,12 +366,12 @@ export function Conversation(
     const previousScrollTop = previousScrollTopRef.current
     previousScrollTopRef.current = el.scrollTop
     if (navigationInProgressRef.current) return
-    if (
-      upwardScrollIntentRef.current
-      && suspendsAutoScrollAfterUpwardScroll(previousScrollTop, el.scrollTop)
-    ) {
-      upwardScrollIntentRef.current = false
-      suspendAutoScroll()
+    if (suspendsAutoScrollAfterUpwardScroll(previousScrollTop, el.scrollTop)) {
+      if (performance.now() < upwardScrollIntentUntilRef.current) {
+        upwardScrollIntentUntilRef.current = 0
+        suspendAutoScroll()
+      }
+      if (!autoScrollRef.current) revealOlderHistory(el)
       return
     }
     if (
@@ -368,12 +392,11 @@ export function Conversation(
     setShowScrollToBottom(true)
   }
 
-  /** Marks the current frame as containing deliberate upward scrolling. */
+  /** Handles upward intent even at the top, where a scroll event might not fire. */
   function markUpwardScrollIntent(): void {
-    upwardScrollIntentRef.current = true
-    requestAnimationFrame(() => {
-      upwardScrollIntentRef.current = false
-    })
+    const conversation = conversationRef.current
+    if (conversation && conversation.scrollTop <= 0) revealOlderHistory(conversation)
+    upwardScrollIntentUntilRef.current = performance.now() + upwardScrollIntentWindowMs
   }
 
   function handleConversationWheel(event: WheelEvent<HTMLDivElement>): void {
@@ -564,7 +587,7 @@ export function Conversation(
           })}
           {toolExecutions
             .filter((execution) =>
-              !toolCallIds.has(execution.id) && !liveToolCallIds.has(execution.id)
+              !toolHistoryIndexes.has(execution.id) && !liveToolCallIds.has(execution.id)
               && (showToolCalls || completedPlansByCallId.has(execution.id))
             )
             .map((execution) => {
