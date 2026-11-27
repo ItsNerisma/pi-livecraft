@@ -93,6 +93,9 @@
   .composer, .ask-user-question {
     width: calc(100% - 32px);
   }
+  .goal-banner {
+    width: calc(100% - 32px);
+  }
 }
 
 @media (max-width: 900px) {
@@ -194,6 +197,9 @@
     padding-inline: 2px;
   }
   .composer, .ask-user-question {
+    width: calc(100% - 20px);
+  }
+  .goal-banner {
     width: calc(100% - 20px);
   }
   .composer {

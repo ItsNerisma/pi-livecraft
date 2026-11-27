@@ -23,6 +23,7 @@ All data arrives through props. The Composer never calls the backend directly.
 | `DictationSetupDialog.tsx` | Guided whisper.cpp setup: prerequisite checklist, copiable command, model download |
 | `composer-utils.ts` | Label/token formatting, command detection, compact-command fallback, prompt delivery mapping, draft loading, `isObject` |
 | `goal-mode.ts` | Bounds recent text evidence, parses strict isolated-review verdicts, extracts the completion contract, and formats the short check-in |
+| `GoalBanner.tsx` | Goal bar above the composer: short objective, verification state, and stop control |
 | `prompt-title.ts` | Immediate session title, replaced later by Pi's extension title |
 | `selects/ComposerSelect.tsx` | Generic Radix Select wrapper with tone-based icons |
 | `selects/AgentSelect.tsx` | Agent picker — derives label from options, calls `onAgentChange` |

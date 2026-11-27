@@ -34,9 +34,11 @@ import type {
 } from '../shared/types.ts'
 import { isObject } from '../shared/is-object.ts'
 import { Composer } from './features/composer/Composer.tsx'
+import { GoalBanner } from './features/composer/GoalBanner.tsx'
 import {
   formatGoalEvidence,
   formatGoalReminder,
+  goalSummary,
   parseGoalDefinition,
   parseGoalReview,
   type GoalDefinition,
@@ -166,6 +168,7 @@ function App() {
   const [compactingSessionIds, setCompactingSessionIds] = useState<ReadonlySet<string>>(new Set())
   const [goalModeSessionIds, setGoalModeSessionIds] = useState<ReadonlySet<string>>(new Set())
   const [goalStatuses, setGoalStatuses] = useState<Record<string, string>>({})
+  const [goalObjectives, setGoalObjectives] = useState<Record<string, string>>({})
   const goalRef = useRef(
     new Map<
       string,
@@ -180,6 +183,11 @@ function App() {
   const clearGoal = useCallback((sessionId: string) => {
     goalRef.current.delete(sessionId)
     setGoalStatuses((current) => {
+      const next = { ...current }
+      delete next[sessionId]
+      return next
+    })
+    setGoalObjectives((current) => {
       const next = { ...current }
       delete next[sessionId]
       return next
@@ -724,11 +732,15 @@ function App() {
         } else if (goal?.awaitingSettle) {
           goal.awaitingSettle = false
           goal.checks += 1
-          setGoalStatuses((current) => ({ ...current, [sessionId]: 'Reviewing completion…' }))
+          setGoalStatuses((current) => ({ ...current, [sessionId]: 'Reviewing…' }))
           void (async () => {
             const snapshot = await getSnapshot(sessionId)
             const definition = await goal.definition
             if (goalRef.current.get(sessionId) !== goal) return
+            setGoalObjectives((current) => ({
+              ...current,
+              [sessionId]: goalSummary(definition.objective),
+            }))
             const evidence = formatGoalEvidence(snapshot.messages)
             const result = await runPrompt(sessionId, {
               systemPrompt:
@@ -755,7 +767,7 @@ function App() {
             }
             setGoalStatuses((current) => ({
               ...current,
-              [sessionId]: `Continuing · check ${goal.checks}/5`,
+              [sessionId]: `Check ${goal.checks}/5`,
             }))
             goal.awaitingSettle = false
             await sendPiCommand(sessionId, {
@@ -913,6 +925,7 @@ function App() {
   // Selected session and loading state
   const selectedSession = sessions.find((session) => session.id === selectedId)
   const goalMode = goalModeSessionIds.has(selectedId)
+  const goalObjective = goalObjectives[selectedId] ?? ''
   const goalStatus = goalStatuses[selectedId] ?? null
   const selectedSessionId = selectedSession?.id
   const selectedSessionStatus = selectedSession?.status
@@ -1007,7 +1020,12 @@ function App() {
         : null
       if (startedGoal) {
         goalRef.current.set(selectedId, startedGoal)
-        setGoalStatuses((current) => ({ ...current, [selectedId]: 'Goal active' }))
+        setGoalStatuses((current) => {
+          const next = { ...current }
+          delete next[selectedId]
+          return next
+        })
+        setGoalObjectives((current) => ({ ...current, [selectedId]: goalSummary(message) }))
       }
       const command: JsonObject = { type: 'prompt', message, images }
       if (delivery.streamingBehavior) command.streamingBehavior = delivery.streamingBehavior
@@ -1461,6 +1479,13 @@ function App() {
                         sessionId={selectedSession.id}
                       />
                     )}
+                    {goalMode && (
+                      <GoalBanner
+                        objective={goalObjective}
+                        status={goalStatus}
+                        onStop={() => handleGoalModeChange(false)}
+                      />
+                    )}
                     {questionnaire && questionnaireInComposer && (
                       <AskUserQuestionDialog
                         canMinimize
@@ -1499,7 +1524,6 @@ function App() {
                       running={agentTurnRunning}
                       compacting={displayedActivity?.kind === 'compacting'}
                       goalMode={goalMode}
-                      goalStatus={goalStatus}
                       onGoalModeChange={handleGoalModeChange}
                       onSend={handleComposerSend}
                       onAbort={handleComposerAbort}

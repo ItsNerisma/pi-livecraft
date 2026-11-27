@@ -69,7 +69,6 @@ export const Composer = memo(function Composer({
   running,
   compacting,
   goalMode,
-  goalStatus,
   onGoalModeChange,
   onSend,
   onAbort,
@@ -102,7 +101,6 @@ export const Composer = memo(function Composer({
   running: boolean
   compacting: boolean
   goalMode: boolean
-  goalStatus: string | null
   onGoalModeChange: (enabled: boolean) => void
   onSend: (
     message: string,
@@ -721,7 +719,6 @@ export const Composer = memo(function Composer({
                 Goal
               </button>
             </Tooltip>
-            {goalStatus && <span className='composer-goal-status'>{goalStatus}</span>}
             {showAgentSelector && (
               <AgentSelect
                 agentOptions={agentOptions}

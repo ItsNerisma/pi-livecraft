@@ -65,6 +65,12 @@ export function formatGoalReminder(nextAction: string): string {
   return `Goal check-in: not complete yet. Next: ${action}`
 }
 
+/** Collapses a goal message onto one short line for the composer banner. */
+export function goalSummary(text: string): string {
+  const line = text.replace(/\s+/g, ' ').trim()
+  return line.length > 160 ? `${line.slice(0, 157)}…` : line
+}
+
 /** Parses a strict JSON verdict; malformed or ambiguous reviews must never trigger continuation. */
 export function parseGoalReview(response: string): GoalReview | null {
   const candidate = response.match(/\{[\s\S]*\}/)?.[0]

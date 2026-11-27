@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   formatGoalEvidence,
   formatGoalReminder,
+  goalSummary,
   parseGoalDefinition,
   parseGoalReview,
 } from '../src/features/composer/goal-mode.ts'
@@ -39,6 +40,13 @@ test('rejects an extraction without a usable objective', () => {
   assert.equal(parseGoalDefinition('{"criteria":"Tests pass"}'), null)
   assert.equal(parseGoalDefinition('{"objective":"   "}'), null)
   assert.equal(parseGoalDefinition('no contract'), null)
+})
+
+test('collapses the objective onto one short banner line', () => {
+  assert.equal(goalSummary('  Ship   the\nfeature  '), 'Ship the feature')
+  const long = goalSummary('x'.repeat(400))
+  assert.equal(long.length, 158)
+  assert.ok(long.endsWith('…'))
 })
 
 test('builds a short check-in that carries the next action only', () => {

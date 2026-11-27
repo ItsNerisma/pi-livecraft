@@ -412,6 +412,69 @@
   background: var(--accent-soft);
   color: var(--accent);
 }
+.goal-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(900px, calc(100% - 48px));
+  min-height: 32px;
+  margin: 0 auto 8px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  border-radius: 10px;
+  padding: 0 6px 0 12px;
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface-raised));
+  color: var(--ink);
+}
+.goal-banner svg {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  fill: var(--accent);
+}
+.goal-banner-title {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font: 700 11px/1.4 ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.goal-banner-objective {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.goal-banner-status {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font: 10px ui-monospace, monospace;
+  white-space: nowrap;
+}
+.goal-banner-stop {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+}
+.goal-banner-stop:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.goal-banner-stop:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 .composer-goal-status {
   align-self: center;
   max-width: 180px;
