@@ -146,7 +146,6 @@ export interface ManagerRequest {
   systemPrompt?: string
   thinkingLevel?: string
   model?: { provider: string; modelId: string }
-  preferredModel?: { provider: string; modelId: string }
   extensions?: string[]
   tools?: string[]
   includeContextFiles?: boolean

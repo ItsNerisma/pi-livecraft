@@ -32,7 +32,8 @@ export function readDictationPreferences(): DictationPreferences {
   const stored = readStoredPreferences()
   return {
     enabled: stored?.enabled ?? true,
-    cleanup: stored?.cleanup ?? true,
+    // Opt-in: the cleanup pass is a second model call that dominates dictation latency.
+    cleanup: stored?.cleanup ?? false,
     language: stored?.language ?? browserLanguage(),
   }
 }

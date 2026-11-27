@@ -3,7 +3,7 @@ import { copyFile, mkdir, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { ISOLATED_AGENT_DIR, PiProcess } from './pi-process.ts'
-import { assistantText, selectAvailableModel } from './prompt-improvement.ts'
+import { assistantText, cheapestAvailableModel } from './prompt-improvement.ts'
 import type { JsonObject } from '../shared/types.ts'
 import { isObject } from '../shared/is-object.ts'
 
@@ -46,10 +46,8 @@ export interface RunIsolatedPromptOptions {
   systemPrompt?: string
   /** Thinking level: 'off', 'low', 'medium', or 'high' (defaults to 'off'). */
   thinkingLevel?: string
-  /** Model to use exactly. When omitted, the preferred model or cheapest available is selected. */
+  /** Model to use. When omitted, the cheapest available model is auto-selected. */
   model?: { provider: string; modelId: string }
-  /** Model to prefer when available, falling back to the cheapest usable model. */
-  preferredModel?: { provider: string; modelId: string }
   /** Extension paths to load. Omit to disable all extensions. */
   extensions?: string[]
   /** Tool names to load. Omit to disable all tools. */
@@ -94,9 +92,9 @@ export async function runIsolatedPrompt(
       })
     } else {
       const available = await pi.request({ type: 'get_available_models' })
-      const selected = selectAvailableModel(available, options.preferredModel)
-      if (!selected) throw new Error('No model is available to run the prompt')
-      await pi.request({ type: 'set_model', provider: selected.provider, modelId: selected.id })
+      const cheapest = cheapestAvailableModel(available)
+      if (!cheapest) throw new Error('No model is available to run the prompt')
+      await pi.request({ type: 'set_model', provider: cheapest.provider, modelId: cheapest.id })
     }
 
     const settled = waitForPiEvent(pi, 'agent_settled')
