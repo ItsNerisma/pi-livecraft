@@ -31,6 +31,9 @@ export function GitWidget(
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const [fileDiff, setFileDiff] = useState<GitFileDiff | null>(null)
+  const [inlineDiffs, setInlineDiffs] = useState<ReadonlyMap<string, GitFileDiff>>(new Map())
+  const [expandedFiles, setExpandedFiles] = useState<ReadonlySet<string>>(new Set())
+  const [loadingFiles, setLoadingFiles] = useState<ReadonlySet<string>>(new Set())
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [exitingCommits, setExitingCommits] = useState<ReadonlySet<string>>(new Set())
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -68,7 +71,41 @@ export function GitWidget(
     setErrorTarget(target ?? null)
   }
 
-  /** Loads the requested diff before replacing the widget's file list. */
+  /** Expands a working-tree file and loads its diff on demand. */
+  async function toggleInlineDiff(path: string): Promise<void> {
+    if (expandedFiles.has(path)) {
+      setExpandedFiles((current) => {
+        const next = new Set(current)
+        next.delete(path)
+        return next
+      })
+      return
+    }
+
+    setExpandedFiles((current) => new Set(current).add(path))
+    if (inlineDiffs.has(path)) return
+
+    setLoadingFiles((current) => new Set(current).add(path))
+    try {
+      const diff = await onFileSelect(path)
+      setInlineDiffs((current) => new Map(current).set(path, diff))
+    } catch (error) {
+      setExpandedFiles((current) => {
+        const next = new Set(current)
+        next.delete(path)
+        return next
+      })
+      reportError(error)
+    } finally {
+      setLoadingFiles((current) => {
+        const next = new Set(current)
+        next.delete(path)
+        return next
+      })
+    }
+  }
+
+  /** Loads the requested commit diff before replacing the widget's file list. */
   async function selectFile(path: string, commitHash?: string): Promise<void> {
     clearError()
     setSelectedPath(path)
@@ -295,14 +332,24 @@ export function GitWidget(
                     {file.status === 'added' || file.status === 'modified'
                       ? (
                         <button
+                          aria-expanded={expandedFiles.has(file.path)}
                           className='git-file-button'
-                          onClick={() => void selectFile(file.path)}
+                          onClick={() => void toggleInlineDiff(file.path)}
                           type='button'
                         >
                           <GitFileRow file={file} />
                         </button>
                       )
                       : <GitFileRow file={file} />}
+                    {expandedFiles.has(file.path) && (
+                      <div className='git-inline-diff'>
+                        {loadingFiles.has(file.path)
+                          ? <p className='git-empty'>Loading diff…</p>
+                          : inlineDiffs.get(file.path)
+                          ? <InlineGitDiff diff={inlineDiffs.get(file.path)!} />
+                          : null}
+                      </div>
+                    )}
                     <Tooltip label={`Discard changes to ${file.path}`}>
                       <button
                         aria-label={`Discard changes to ${file.path}`}
@@ -415,6 +462,11 @@ export function GitWidget(
 }
 
 /** Displays common file metadata in Git lists. */
+function InlineGitDiff({ diff }: { diff: GitFileDiff }) {
+  const entries = useMemo(() => parseGitDiff(diff.diff), [diff.diff])
+  return <GitDiff entries={entries} path={diff.path} />
+}
+
 function GitFileRow({ file }: { file: GitSnapshot['files'][number] }) {
   const fileIcon = resolveFileIcon(file.path)
   const statusLabel = gitStatusLabel(file.status)
