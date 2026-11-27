@@ -551,16 +551,24 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
     const language = typeof body.language === 'string' && /^[a-z]{2,3}$/i.test(body.language)
       ? body.language
       : 'auto'
-    const text = await transcribeAudio(
+    const startedAt = performance.now()
+    const transcription = await transcribeAudio(
       audio,
       typeof body.mimeType === 'string' ? body.mimeType : 'audio/webm',
       language,
     )
-    if (body.clean !== true) {
-      sendJson(response, 200, { text, cleaned: false })
-      return
-    }
-    const cleaned = await cleanDictation(decodeURIComponent(transcriptionMatch[1]), text)
+    const cleanupStartedAt = performance.now()
+    const cleaned = body.clean === true
+      ? await cleanDictation(decodeURIComponent(transcriptionMatch[1]), transcription.text)
+      : { text: transcription.text, cleaned: false }
+    const cleanupMs = body.clean === true ? performance.now() - cleanupStartedAt : 0
+    console.info(
+      `[dictation] setup=${Math.round(transcription.timings.setupMs)}ms `
+        + `ffmpeg=${Math.round(transcription.timings.ffmpegMs)}ms `
+        + `whisper=${Math.round(transcription.timings.whisperMs)}ms `
+        + `cleanup=${body.clean === true ? `${Math.round(cleanupMs)}ms` : 'off'} `
+        + `total=${Math.round(performance.now() - startedAt)}ms`,
+    )
     sendJson(response, 200, cleaned)
     return
   }

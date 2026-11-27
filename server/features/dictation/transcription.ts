@@ -276,14 +276,29 @@ export function audioExtension(mimeType: string): string | undefined {
  * WAV that whisper.cpp requires. Both processes run unseen, with a hard timeout,
  * and the temporary directory is always removed.
  */
+export interface TranscriptionTimings {
+  /** Model and file preparation before conversion. */
+  setupMs: number
+  /** Audio container conversion to 16 kHz mono WAV. */
+  ffmpegMs: number
+  /** whisper.cpp process lifetime, including model load and inference. */
+  whisperMs: number
+}
+
+export interface TranscriptionResult {
+  text: string
+  timings: TranscriptionTimings
+}
+
 export async function transcribeAudio(
   audio: Buffer,
   mimeType: string,
   language: string,
   env: NodeJS.ProcessEnv = process.env,
-): Promise<string> {
+): Promise<TranscriptionResult> {
   const extension = audioExtension(mimeType)
   if (!extension) throw new Error(`Unsupported audio format: ${mimeType}`)
+  const startedAt = performance.now()
   const status = await transcriptionStatus(env)
   if (!status.available || !status.binary || !status.model)
     throw new Error(status.hint || 'Local dictation is unavailable')
@@ -293,6 +308,7 @@ export async function transcribeAudio(
     const source = join(directory, `input.${extension}`)
     const wav = join(directory, 'audio.wav')
     await writeFile(source, audio)
+    const ffmpegStartedAt = performance.now()
     await runProcess('ffmpeg', [
       '-nostdin',
       '-y',
@@ -306,6 +322,8 @@ export async function transcribeAudio(
       'pcm_s16le',
       wav,
     ], 60_000)
+    const ffmpegMs = performance.now() - ffmpegStartedAt
+    const whisperStartedAt = performance.now()
     // `-mc 0` disables cross-segment context so a noisy clip cannot drift into invented text.
     const output = await runProcess(status.binary, [
       '-m',
@@ -319,9 +337,17 @@ export async function transcribeAudio(
       '-mc',
       '0',
     ], 180_000)
+    const whisperMs = performance.now() - whisperStartedAt
     const text = parseWhisperOutput(output)
     if (!text) throw new Error('No speech was recognised in the recording')
-    return text
+    return {
+      text,
+      timings: {
+        setupMs: ffmpegStartedAt - startedAt,
+        ffmpegMs,
+        whisperMs,
+      },
+    }
   } finally {
     await rm(directory, { recursive: true, force: true })
   }

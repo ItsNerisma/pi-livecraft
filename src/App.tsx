@@ -871,8 +871,11 @@ function App() {
       const command: JsonObject = { type: 'prompt', message, images }
       if (delivery.streamingBehavior) command.streamingBehavior = delivery.streamingBehavior
       const isSteering = delivery.streamingBehavior === 'steer'
-      if (isSteering) addPendingSteering(message)
-      const optimisticId = !isSteering && !isCommand ? addOptimisticUserMessage(message) : undefined
+      const composerSessionIsSelected = selectedIdRef.current === selectedId
+      if (isSteering && composerSessionIsSelected) addPendingSteering(message)
+      const optimisticId = composerSessionIsSelected && !isSteering && !isCommand
+        ? addOptimisticUserMessage(message)
+        : undefined
       try {
         await sendPiCommand(selectedId, command)
         const sentSession = sessions.find((session) => session.id === selectedId)
@@ -882,10 +885,13 @@ function App() {
             .some((entry) => entry.role === 'user')
         if (sentSession && shouldNameSession) nameSessionFromFirstPrompt(sentSession, message)
         await refreshSessions()
-        setScrollToBottomRequest((current) => current + 1)
+        if (selectedIdRef.current === selectedId)
+          setScrollToBottomRequest((current) => current + 1)
       } catch (cause) {
-        if (optimisticId) removeLiveMessage(optimisticId)
-        if (isSteering) removePendingSteering(message)
+        if (selectedIdRef.current === selectedId) {
+          if (optimisticId) removeLiveMessage(optimisticId)
+          if (isSteering && composerSessionIsSelected) removePendingSteering(message)
+        }
         throw cause
       }
     },
