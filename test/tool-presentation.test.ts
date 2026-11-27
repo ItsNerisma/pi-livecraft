@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { intraLineDiff } from '../shared/text-diff.ts'
 import { pathFromRepositoryRoot } from '../src/features/conversation/tool-call-presentations/shared.ts'
 import {
   editDiffDisplayLines,
   fileUrl,
   formatToolCallTooltip,
-  intraLineDiff,
   parseEditDiff,
   provisionalToolName,
   readContentDisplay,

@@ -88,6 +88,32 @@
 .widget-header:has(.git-back) strong {
   min-width: 0;
 }
+.git-diff-title {
+  flex: 1;
+  min-width: 0;
+}
+.widget-header .git-diff-title span {
+  margin-top: 2px;
+  font-size: 10px;
+}
+.widget-header .git-diff-totals {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  margin-top: 0;
+  color: var(--muted);
+  font: 700 10px ui-monospace, monospace;
+}
+.git-add {
+  color: var(--success);
+  font-style: normal;
+  font-weight: 700;
+}
+.git-del {
+  color: var(--danger);
+  font-style: normal;
+  font-weight: 700;
+}
 .git-back {
   display: grid;
   place-items: center;
@@ -108,53 +134,69 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+/* Diff view — a single gutter keeps wrapped code readable at sidebar width. */
 .git-diff {
-  overflow-x: auto;
-  margin: 0;
-  padding: 10px 0 18px;
-  font: 11px/1.5 ui-monospace, monospace;
+  padding: 4px 0 16px;
+  font: 11px/17px ui-monospace, monospace;
+  tab-size: 4;
 }
 .git-diff-line {
   display: grid;
-  grid-template-columns: 38px 38px 14px minmax(0, 1fr);
-  padding: 0 14px;
+  grid-template-columns: 32px 12px minmax(0, 1fr);
+  align-items: start;
+  padding: 1px 12px 1px 6px;
   white-space: pre-wrap;
 }
 .git-diff-line > span {
   color: var(--subtle);
+  font-size: 10px;
+  line-height: 17px;
   text-align: right;
   user-select: none;
 }
 .git-diff-line > i {
   color: var(--subtle);
   font-style: normal;
+  line-height: 17px;
   text-align: center;
   user-select: none;
 }
 .git-diff-line > code {
+  min-width: 0;
   font: inherit;
+  overflow-wrap: anywhere;
 }
 .git-diff-line.added {
-  background: color-mix(in srgb, var(--success) 13%, var(--surface));
-  color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, var(--surface));
+  color: var(--ink);
 }
-.git-diff-line.added > span, .git-diff-line.added > i {
+.git-diff-line.added > i {
   color: var(--success);
 }
 .git-diff-line.removed {
   background: var(--danger-soft);
+  color: var(--ink);
+}
+.git-diff-line.removed > i {
   color: var(--danger);
 }
-.git-diff-line.removed > span, .git-diff-line.removed > i {
-  color: color-mix(in srgb, var(--danger) 60%, var(--surface));
+.git-diff-token.added, .git-diff-token.removed {
+  border-radius: 3px;
+  font-weight: 700;
 }
-.git-diff-line.hunk {
-  margin: 7px 0 3px;
-  background: color-mix(in srgb, var(--surface) 70%, var(--canvas));
-  color: var(--accent);
+.git-diff-line.added .git-diff-token.added {
+  background: color-mix(in srgb, var(--success) 22%, var(--surface));
 }
-.git-diff-line.hunk > span {
-  visibility: hidden;
+.git-diff-line.removed .git-diff-token.removed {
+  background: color-mix(in srgb, var(--danger) 20%, var(--surface));
+}
+.git-diff-gap {
+  margin: 6px 0;
+  padding: 2px 12px;
+  background: color-mix(in srgb, var(--surface) 72%, var(--canvas));
+  color: var(--muted);
+  font: 10px/17px ui-sans-serif, system-ui, sans-serif;
+  user-select: none;
 }
 .git-file-status {
   display: grid;

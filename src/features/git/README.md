@@ -6,7 +6,7 @@ The Git widget keeps the state of the current repository beside the conversation
 
 - the current branch and whether the working tree is clean;
 - added, modified, deleted, and renamed files, with line counts when Git provides them;
-- a line-numbered textual diff for added and modified files;
+- a line-numbered textual diff for added and modified files, with collapsed counts for the unchanged lines between hunks and word-level highlights on one-line replacements;
 - commits ahead of the tracked remote branch, including their subject and changed files;
 - action errors without closing the panel or losing the current selection.
 

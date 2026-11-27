@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Tooltip } from '../../components/Tooltip.tsx'
 import type {
   GitFileDiff,
@@ -9,7 +9,7 @@ import type {
 } from '../../../shared/types.ts'
 import { resolveFileIcon } from '../../../shared/file-icon.ts'
 import { WidgetLayout } from '../right-sidebar/WidgetLayout.tsx'
-import { parseGitDiff } from './git-diff.ts'
+import { parseGitDiff, type GitDiffEntry } from './git-diff.ts'
 
 /** Local git-error target — which element to shake on failure. */
 type ErrorTarget = 'push' | 'commit' | 'discard' | 'refresh'
@@ -36,6 +36,16 @@ export function GitWidget(
   const [errorTarget, setErrorTarget] = useState<ErrorTarget | null>(null)
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const hasChanges = snapshot.files.length > 0
+  const diffEntries = useMemo(() => (fileDiff ? parseGitDiff(fileDiff.diff) : []), [fileDiff])
+  const diffTotals = useMemo(() => countDiffLines(diffEntries), [diffEntries])
+  const workingTotals = snapshot.files.reduce(
+    (totals, file) => ({
+      additions: totals.additions + (file.additions ?? 0),
+      deletions: totals.deletions + (file.deletions ?? 0),
+    }),
+    { additions: 0, deletions: 0 },
+  )
+  const selectedTitle = selectedPath ? gitPathParts(selectedPath) : null
 
   /** Clears any stuck error highlight after the shake animation ends. */
   useEffect(() => {
@@ -61,6 +71,7 @@ export function GitWidget(
   async function selectFile(path: string, commitHash?: string): Promise<void> {
     clearError()
     setSelectedPath(path)
+    setFileDiff(null)
     try {
       setFileDiff(await onFileSelect(path, commitHash))
     } catch (error) {
@@ -227,9 +238,16 @@ export function GitWidget(
                 ←
               </button>
             </Tooltip>
-            <Tooltip label={selectedPath ?? ''}>
-              <strong>{selectedPath}</strong>
-            </Tooltip>
+            <div className='git-diff-title'>
+              <strong>{selectedTitle?.name ?? ''}</strong>
+              {selectedTitle?.directory && <span>{selectedTitle.directory}</span>}
+            </div>
+            {fileDiff && (
+              <span className='git-diff-totals'>
+                <b className='git-add'>+{diffTotals.additions}</b>
+                <i className='git-del'>−{diffTotals.deletions}</i>
+              </span>
+            )}
           </>
         )
         : (
@@ -240,6 +258,13 @@ export function GitWidget(
                 {hasChanges
                   ? `${snapshot.files.length} file${snapshot.files.length > 1 ? 's' : ''} modified`
                   : 'Clean tree'}
+                {hasChanges && workingTotals.additions + workingTotals.deletions > 0 && (
+                  <>
+                    {' '}
+                    <b className='git-add'>+{workingTotals.additions}</b>{' '}
+                    <i className='git-del'>−{workingTotals.deletions}</i>
+                  </>
+                )}
               </span>
             </div>
             <Tooltip label='Refresh'>
@@ -257,7 +282,9 @@ export function GitWidget(
     >
       {errorMessage && <p className='git-error' role='alert'>{errorMessage}</p>}
       {fileDiff || selectedPath
-        ? fileDiff ? <GitDiff diff={fileDiff.diff} /> : <p className='git-empty'>Loading diff…</p>
+        ? fileDiff
+          ? <GitDiff entries={diffEntries} />
+          : <p className='git-empty'>Loading diff…</p>
         : (
           <>
             {hasChanges && (
@@ -419,25 +446,59 @@ function GitFileRow({ file }: { file: GitSnapshot['files'][number] }) {
   )
 }
 
-/** Displays a Git diff with line numbers before and after the change. */
-function GitDiff({ diff }: { diff: string }) {
-  const lines = parseGitDiff(diff)
-  if (lines.length === 0) return <p className='git-empty'>No textual differences to display.</p>
+/** Displays a parsed Git diff with a single gutter and collapsed unchanged regions. */
+function GitDiff({ entries }: { entries: GitDiffEntry[] }) {
+  if (entries.length === 0) return <p className='git-empty'>No textual differences to display.</p>
 
   return (
     <section className='git-diff' aria-label='File diff'>
-      {lines.map((line, index) => (
-        <div className={`git-diff-line ${line.kind}`} key={index}>
-          <span>{line.oldLine ?? ''}</span>
-          <span>{line.newLine ?? ''}</span>
-          <i aria-hidden='true'>
-            {line.kind === 'added' ? '+' : line.kind === 'removed' ? '−' : ' '}
-          </i>
-          <code>{line.content}</code>
-        </div>
-      ))}
+      {entries.map((entry, index) => {
+        if (entry.kind === 'gap')
+          return (
+            <p className='git-diff-gap' key={index}>
+              {entry.count} unmodified line{entry.count > 1 ? 's' : ''}
+            </p>
+          )
+
+        return (
+          <div className={`git-diff-line ${entry.kind}`} key={index}>
+            <span>{entry.newLine ?? entry.oldLine ?? ''}</span>
+            <i aria-hidden='true'>
+              {entry.kind === 'added' ? '+' : entry.kind === 'removed' ? '−' : ' '}
+            </i>
+            <code>
+              {entry.segments?.length
+                ? entry.segments.map((segment, segmentIndex) => (
+                  <span className={`git-diff-token ${segment.kind}`} key={segmentIndex}>
+                    {segment
+                      .text}
+                  </span>
+                ))
+                : entry.content || ' '}
+            </code>
+          </div>
+        )
+      })}
     </section>
   )
+}
+
+/** Counts added and removed lines in a parsed diff for the file header. */
+function countDiffLines(entries: GitDiffEntry[]): { additions: number; deletions: number } {
+  let additions = 0
+  let deletions = 0
+  for (const entry of entries) {
+    if (entry.kind === 'added') additions += 1
+    else if (entry.kind === 'removed') deletions += 1
+  }
+  return { additions, deletions }
+}
+
+/** Splits a repository path into its file name and parent directory. */
+function gitPathParts(path: string): { directory: string; name: string } {
+  const separator = path.lastIndexOf('/')
+  if (separator === -1) return { directory: '', name: path }
+  return { directory: path.slice(0, separator), name: path.slice(separator + 1) }
 }
 
 function gitStatusLabel(status: 'added' | 'deleted' | 'modified' | 'renamed'): string {

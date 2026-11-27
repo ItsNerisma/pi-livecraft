@@ -1,5 +1,5 @@
-import { diffWords } from 'diff'
 import { isObject } from '../../../shared/is-object.ts'
+import { intraLineDiff, type IntraLineSegment } from '../../../shared/text-diff.ts'
 import { toolCallPresentations } from './tool-call-presentations/index.ts'
 import { positiveInteger, type ToolCallPresentation } from './tool-call-presentations/shared.ts'
 import type { ToolCall } from './tool-protocol.ts'
@@ -30,46 +30,6 @@ export interface EditDiffLine {
   content: string
   kind: 'added' | 'context' | 'removed'
   lineNumber: number | null
-}
-
-export interface IntraLineSegment {
-  text: string
-  kind: 'added' | 'removed' | 'shared'
-  highlighted?: boolean
-}
-
-/** Computes word-level diff segments with the same algorithm as Pi's edit renderer. */
-export function intraLineDiff(oldText: string, newText: string): IntraLineSegment[] {
-  const segments: IntraLineSegment[] = []
-  let isFirstRemoved = true
-  let isFirstAdded = true
-
-  for (const part of diffWords(oldText, newText)) {
-    const kind: IntraLineSegment['kind'] = part.removed
-      ? 'removed'
-      : part.added
-      ? 'added'
-      : 'shared'
-    if (kind === 'shared') {
-      segments.push({ text: part.value, kind })
-      continue
-    }
-
-    const isFirst = kind === 'removed' ? isFirstRemoved : isFirstAdded
-    if (kind === 'removed') isFirstRemoved = false
-    else isFirstAdded = false
-    if (!isFirst) {
-      segments.push({ text: part.value, kind })
-      continue
-    }
-
-    const leadingWhitespace = part.value.match(/^\s*/)?.[0] ?? ''
-    if (leadingWhitespace) segments.push({ text: leadingWhitespace, kind, highlighted: false })
-    const text = part.value.slice(leadingWhitespace.length)
-    if (text) segments.push({ text, kind })
-  }
-
-  return segments
 }
 
 /** Turns Pi's display-oriented edit diff into colorable lines with source and destination line numbers. */

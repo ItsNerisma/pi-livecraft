@@ -1,9 +1,5 @@
-import {
-  editDiffDisplayLines,
-  intraLineDiff,
-  toolEditChanges,
-  type EditDiffLine,
-} from './tool-presentation.ts'
+import { intraLineDiff } from '../../../shared/text-diff.ts'
+import { editDiffDisplayLines, toolEditChanges, type EditDiffLine } from './tool-presentation.ts'
 
 /** Renders segments with intra-line highlights for changed words. */
 function DiffLineContent(

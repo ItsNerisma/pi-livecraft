@@ -27,10 +27,46 @@ test('parse un diff unifié sans ses métadonnées Git', () => {
   )
 
   assert.deepEqual(lines, [
-    { content: '@@ -2,2 +2,3 @@', kind: 'hunk', oldLine: null, newLine: null },
     { content: 'keep', kind: 'context', oldLine: 2, newLine: 2 },
     { content: 'old', kind: 'removed', oldLine: 3, newLine: null },
     { content: 'new', kind: 'added', oldLine: null, newLine: 3 },
     { content: 'added', kind: 'added', oldLine: null, newLine: 4 },
+  ])
+})
+
+test('calcule les lignes inchangées omises entre deux hunks', () => {
+  const entries = parseGitDiff(
+    '@@ -1,3 +1,2 @@\n same\n-a\n-b\n+b\n@@ -10,2 +10,3 @@\n other\n+c\n',
+  )
+
+  assert.deepEqual(entries, [
+    { content: 'same', kind: 'context', oldLine: 1, newLine: 1 },
+    { content: 'a', kind: 'removed', oldLine: 2, newLine: null },
+    { content: 'b', kind: 'removed', oldLine: 3, newLine: null },
+    { content: 'b', kind: 'added', oldLine: null, newLine: 2 },
+    { count: 6, kind: 'gap' },
+    { content: 'other', kind: 'context', oldLine: 10, newLine: 10 },
+    { content: 'c', kind: 'added', oldLine: null, newLine: 11 },
+  ])
+})
+
+test('met en évidence les mots modifiés dans un remplacement d’une ligne', () => {
+  const entries = parseGitDiff('@@ -4,1 +4,1 @@\n-const x = 1\n+const x = 2\n')
+
+  assert.deepEqual(entries, [
+    {
+      content: 'const x = 1',
+      kind: 'removed',
+      oldLine: 4,
+      newLine: null,
+      segments: [{ text: 'const x = ', kind: 'shared' }, { text: '1', kind: 'removed' }],
+    },
+    {
+      content: 'const x = 2',
+      kind: 'added',
+      oldLine: null,
+      newLine: 4,
+      segments: [{ text: 'const x = ', kind: 'shared' }, { text: '2', kind: 'added' }],
+    },
   ])
 })
