@@ -3,6 +3,8 @@ import * as Select from '@radix-ui/react-select'
 import type { CommandDefinition, CommandId } from '../commands/command-registry.ts'
 import { shortcutFromEvent, shortcutConflicts } from '../commands/command-registry.ts'
 import { setBaseFavicon } from '../notifications/tab-attention.ts'
+import type { DictationPreferences } from '../composer/composer-dictation.ts'
+import type { TranscriptionStatus } from '../../api.ts'
 import { themeFaviconHref } from './theme-favicon.ts'
 import {
   applyThemePalette,
@@ -27,7 +29,7 @@ const themeVariableLabels: Record<ThemeVariable, string> = {
 // ── Tab registry ───────────────────────────────────────────────────
 
 /** Identifies a settings tab. Extend this union when adding a new tab. */
-export type SettingsTabId = 'themes' | 'terminal' | 'shortcuts'
+export type SettingsTabId = 'themes' | 'dictation' | 'terminal' | 'shortcuts'
 
 /** Describes one tab in the settings modal. */
 export interface SettingsTabDefinition {
@@ -38,6 +40,7 @@ export interface SettingsTabDefinition {
 /** Ordered list of tabs rendered in the settings modal. */
 export const settingsTabs: SettingsTabDefinition[] = [
   { id: 'themes', label: 'Color themes' },
+  { id: 'dictation', label: 'Dictation' },
   { id: 'terminal', label: 'Terminal' },
   { id: 'shortcuts', label: 'Shortcuts' },
 ]
@@ -48,6 +51,9 @@ interface SettingsPanelProps {
   definitions: CommandDefinition[]
   shortcuts: Partial<Record<CommandId, string>>
   terminalCommand: string
+  dictation: DictationPreferences
+  transcriptionStatus: TranscriptionStatus | null
+  onDictationChange: (preferences: DictationPreferences) => void
   themes: Theme[]
   activeThemeId: string
   onChange: (id: CommandId, shortcut: string) => void
@@ -262,6 +268,57 @@ function TerminalSettings({ terminalCommand, onTerminalCommandChange }: Terminal
   )
 }
 
+interface DictationSettingsProps {
+  dictation: DictationPreferences
+  transcriptionStatus: TranscriptionStatus | null
+  onChange: (preferences: DictationPreferences) => void
+}
+
+function DictationSettings(
+  { dictation, transcriptionStatus, onChange }: DictationSettingsProps,
+) {
+  return (
+    <section>
+      <label className='dictation-toggle'>
+        <input
+          checked={dictation.enabled}
+          onChange={(event) => onChange({ ...dictation, enabled: event.target.checked })}
+          type='checkbox'
+        />
+        <span>Show the microphone in the composer</span>
+      </label>
+      <label className='dictation-toggle'>
+        <input
+          checked={dictation.cleanup}
+          onChange={(event) => onChange({ ...dictation, cleanup: event.target.checked })}
+          type='checkbox'
+        />
+        <span>Clean each transcript automatically</span>
+      </label>
+      <label className='terminal-command-row'>
+        <span>Spoken language</span>
+        <input
+          aria-label='Dictation language'
+          onChange={(event) => onChange({ ...dictation, language: event.target.value })}
+          placeholder='auto'
+          spellCheck={false}
+          value={dictation.language}
+        />
+        <small>A two- or three-letter code such as fr or en, or auto to detect it.</small>
+      </label>
+      <p className='dictation-status'>
+        {transcriptionStatus === null
+          ? 'Checking local transcription on the backend…'
+          : transcriptionStatus.available
+          ? `Local transcription ready${
+            transcriptionStatus.model ? ` · ${transcriptionStatus.model}` : ''
+          }`
+          : transcriptionStatus.hint}
+      </p>
+    </section>
+  )
+}
+
 interface ShortcutsSettingsProps {
   definitions: CommandDefinition[]
   shortcuts: Partial<Record<CommandId, string>>
@@ -328,6 +385,9 @@ export function SettingsPanel({
   definitions,
   shortcuts,
   terminalCommand,
+  dictation,
+  transcriptionStatus,
+  onDictationChange,
   themes,
   activeThemeId,
   onChange,
@@ -402,6 +462,19 @@ export function SettingsPanel({
                 onUpdateThemeColor={onUpdateThemeColor}
                 themeName={themeName}
                 themes={themes}
+              />
+            </TabPanel>
+          )}
+          {activeTab === 'dictation' && (
+            <TabPanel
+              key='dictation'
+              id='settings-tab-dictation'
+              labelledBy='settings-tab-btn-dictation'
+            >
+              <DictationSettings
+                dictation={dictation}
+                onChange={onDictationChange}
+                transcriptionStatus={transcriptionStatus}
               />
             </TabPanel>
           )}

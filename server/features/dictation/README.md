@@ -1,0 +1,28 @@
+# Dictation
+
+Turns a composer recording into text with local whisper.cpp, then optionally rewrites the transcript surface-only in a disposable Pi process.
+
+## Boundaries
+
+- `server/features/dictation/transcription.ts` owns prerequisite detection, the ffmpeg conversion, the whisper.cpp invocation, and output parsing. It never ships a model: the binary and the model live on the user's machine.
+- `server/backend.ts` owns the routes: `GET /api/transcription` reports prerequisites, `POST /api/sessions/:id/transcription` accepts a base64 clip and returns the text. Request parsing, size limits, and language validation stay in the route.
+- `dictation-cleanup-system.txt` is the cleanup prompt. It is read from disk on every request, so edits apply without restarting the backend.
+- `src/features/composer/composer-dictation.ts` owns microphone recording, the `pi-livecraft.dictation` preferences, and caret-aware draft insertion.
+
+## Prerequisites
+
+Detection resolves, in order:
+
+1. `PI_LIVECRAFT_WHISPER_BIN`, then `whisper-cli`, `whisper-cpp`, or `main` on `PATH`.
+2. `PI_LIVECRAFT_WHISPER_MODEL`, then `ggml-base.bin`, `ggml-small.bin`, or `ggml-tiny.bin` under the user's data and cache directories.
+3. `ffmpeg` on `PATH`, used to convert the browser's compressed recording to 16 kHz mono WAV.
+
+`GET /api/transcription` returns the resolved paths, an `available` flag, and a remediation `hint`. The composer disables the microphone button and shows that hint when anything is missing.
+
+## Cleanup
+
+The cleanup pass is a short-lived isolated Pi prompt that edits surface only: punctuation, hesitations, explicit self-corrections, and unambiguous misheard identifiers. It must never reword, answer, or add facts. A failed or empty rewrite returns the raw transcript with `cleanupError`, so a dictation is never lost.
+
+## Tests
+
+`test/dictation.test.ts` covers output parsing, MIME mapping, prerequisite detection with a fake install, and status reporting when nothing is installed. `test/composer-dictation.test.ts` covers caret-aware insertion and language normalization.

@@ -227,6 +227,39 @@
   font-size: 11px;
   line-height: 1.5;
 }
+.dictation-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.dictation-toggle input {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.dictation-toggle input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.dictation-toggle:last-of-type {
+  margin-bottom: 20px;
+}
+.dictation-status {
+  margin: 4px 0 0;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
 .terminal-command-error {
   color: var(--danger) !important;
 }

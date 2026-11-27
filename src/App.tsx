@@ -3,6 +3,7 @@ import './App.css'
 import {
   commitChanges,
   discardChanges,
+  fetchTranscriptionStatus,
   getGitFileDiff,
   getGitSnapshot,
   getQuotas,
@@ -17,6 +18,8 @@ import {
   savePrompt,
   sendPiCommand,
   subscribeManagerEvents,
+  transcribeRecording,
+  type TranscriptionStatus,
 } from './api.ts'
 import { quotaRefreshAllowed } from '../shared/quota-refresh.ts'
 import type {
@@ -28,6 +31,11 @@ import type {
 } from '../shared/types.ts'
 import { isObject } from '../shared/is-object.ts'
 import { Composer } from './features/composer/Composer.tsx'
+import {
+  readDictationPreferences,
+  writeDictationPreferences,
+  type DictationPreferences,
+} from './features/composer/composer-dictation.ts'
 import { PlanPanel } from './features/plan/PlanPanel.tsx'
 import {
   setBaseFavicon,
@@ -194,6 +202,23 @@ function App() {
   >()
   const [shortcuts, setShortcuts] = useState(() => readShortcuts())
   const [terminalCommand, setTerminalCommand] = useState(() => readTerminalCommand())
+  const [dictation, setDictation] = useState(() => readDictationPreferences())
+  const [transcriptionStatus, setTranscriptionStatus] = useState<TranscriptionStatus | null>(null)
+
+  // Local dictation prerequisites are detected once: they only change when the user installs whisper.cpp.
+  useEffect(() => {
+    let active = true
+    void fetchTranscriptionStatus()
+      .then((status) => {
+        if (active) setTranscriptionStatus(status)
+      })
+      .catch(() => {
+        if (active) setTranscriptionStatus(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   // Workspace and session synchronization
   const selectedIdRef = useRef(window.localStorage.getItem('pi-livecraft.selected-session') ?? '')
@@ -873,6 +898,16 @@ function App() {
     (prompt: string, direction?: string) => improvePrompt(selectedId, prompt, direction),
     [selectedId],
   )
+  const handleTranscription = useCallback(
+    (audio: Blob, options: { clean: boolean; language: string }) =>
+      transcribeRecording(selectedId, audio, options),
+    [selectedId],
+  )
+  /** Keeps dictation preferences in state and in `localStorage` from the settings panel. */
+  const handleDictationChange = useCallback((preferences: DictationPreferences) => {
+    setDictation(preferences)
+    writeDictationPreferences(preferences)
+  }, [])
   /** Persists the draft through Pi's prompt directories and confirms its scope to the user. */
   const handleSavePrompt = useCallback(async (
     scope: 'global' | 'project',
@@ -1304,6 +1339,9 @@ function App() {
                       onSend={handleComposerSend}
                       onAbort={handleComposerAbort}
                       onImprovePrompt={handlePromptImprovement}
+                      dictation={dictation}
+                      transcriptionStatus={transcriptionStatus}
+                      onTranscribe={handleTranscription}
                       onSavePrompt={handleSavePrompt}
                       onError={handleConversationError}
                       requestedSelect={requestedSelect}
@@ -1472,6 +1510,9 @@ function App() {
           definitions={commandDefinitions}
           shortcuts={shortcuts}
           terminalCommand={terminalCommand}
+          dictation={dictation}
+          transcriptionStatus={transcriptionStatus}
+          onDictationChange={handleDictationChange}
           themes={allThemes(themePreferences)}
           activeThemeId={activeTheme.id}
           onChange={(id, shortcut) => {

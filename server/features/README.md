@@ -3,6 +3,7 @@
 This directory contains local product capabilities used by `server/backend.ts`. The backend remains the sole HTTP routing and validation boundary; feature modules implement behavior and persistence without defining routes.
 
 - [`folder-picker/`](/server/features/folder-picker/README.md) opens the host's native directory dialog for choosing a workspace folder.
+- [`dictation/`](/server/features/dictation/README.md) transcribes composer recordings with local whisper.cpp and cleans the transcript.
 - [`git/`](/server/features/git/README.md) reads and mutates the selected repository.
 - [`quotas/`](/server/features/quotas/README.md) caches provider reports and coordinates refreshes through the manager.
 - [`terminal/`](/server/features/terminal/README.md) launches an external terminal application in the workspace directory.

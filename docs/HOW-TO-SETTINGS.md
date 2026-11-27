@@ -8,10 +8,12 @@
 SettingsPanel (modal container, tab state)
   ├── Tab bar (role="tablist")
   │     ├── Tab button: Color themes
+  │     ├── Tab button: Dictation
   │     ├── Tab button: Terminal
   │     └── Tab button: Shortcuts
   └── Tab panels (role="tabpanel", one visible at a time)
         ├── ThemeSettings (section component)
+        ├── DictationSettings (section component)
         ├── TerminalSettings (section component)
         └── ShortcutsSettings (section component)
 ```
@@ -23,6 +25,7 @@ SettingsPanel (modal container, tab state)
 | Tab ID | Label | Component | Props from `SettingsPanelProps` |
 |---|---|---|---|
 | `themes` | Color themes | `ThemeSettings` | `themes`, `activeThemeId`, `onSelectTheme`, `onDuplicateTheme`, `onRenameTheme`, `onUpdateThemeColor`, `onDeleteTheme`, `onResetTheme` |
+| `dictation` | Dictation | `DictationSettings` | `dictation`, `transcriptionStatus`, `onDictationChange` |
 | `terminal` | Terminal | `TerminalSettings` | `terminalCommand`, `onTerminalCommandChange` |
 | `shortcuts` | Shortcuts | `ShortcutsSettings` | `definitions`, `shortcuts`, `onChange`, `onReset` |
 

@@ -7,7 +7,7 @@
 - `commands/` defines commands, default shortcuts, normalization, and conflict detection.
 - `settings/` captures shortcut changes and resets them, and owns the theme palette plus the themed tab favicon.
 - `App.tsx` persists shortcuts, theme, conversation view, workspace restoration, left and right sidebar state.
-- `composer/` persists drafts per session.
+- `composer/` persists drafts per session, plus the `pi-livecraft.dictation` voice-input preferences shown in the Dictation tab.
 
 All values stay in browser `localStorage`; never store secrets there. Readers must tolerate missing, malformed, and documented legacy values so a preference cannot prevent startup. The palette and Settings shortcuts remain fixed to keep both surfaces recoverable.
 

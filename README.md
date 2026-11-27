@@ -91,7 +91,7 @@ Open [http://127.0.0.1:5173](http://127.0.0.1:5173) and you should see Livecraft
 
 - **Workspace sections and parallel sessions:** start a session in any folder the host can browse, then find it again under a collapsible section named after that folder. Create, switch, reopen, and monitor Pi sessions across workspaces; running and newly completed sessions stay visible with their status
 
-- **A Pi-native composer:** send text and images, use slash commands, stop a request, choose the models, thinking levels, and saved prompts exposed by Pi, and steer or queue follow-ups while Pi is working
+- **A Pi-native composer:** send text and images, dictate a prompt with your voice, use slash commands, stop a request, choose the models, thinking levels, and saved prompts exposed by Pi, and steer or queue follow-ups while Pi is working
 
 - **Isolated prompts:** run a one-off Pi prompt from a widget, command, or anywhere really. By default it uses the cheapest available model in your Pi installation, returns one answer, and does not add anything to the active conversation
 
@@ -221,6 +221,7 @@ When these extensions are installed and configured in Pi, Livecraft already cont
 - A new session cannot answer: launch Pi once, configure a provider with `/login`, and verify that the `/agent` extension is available if your setup expects it.
 - Native Windows desktop actions unavailable: verify that Windows PowerShell is available. Terminal selection tries Windows Terminal, Alacritty, WezTerm, PowerShell 7, Windows PowerShell, then Command Prompt.
 - Linux desktop actions unavailable: install or expose `xdg-open` and `x-terminal-emulator` in `PATH`.
+- Voice dictation unavailable: install `whisper.cpp` and download a model, or point `PI_LIVECRAFT_WHISPER_BIN` and `PI_LIVECRAFT_WHISPER_MODEL` at existing ones. `ffmpeg` is required to convert the recording; the Dictation settings tab reports exactly what is missing.
 - WSL desktop actions unavailable: verify that `explorer.exe`, `wslpath`, and `wt.exe` are available in the WSL `PATH`.
 
 </details>

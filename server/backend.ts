@@ -35,6 +35,11 @@ import {
 } from './workspace-file.ts'
 import { activeSessionMessages, LiveSessionEvents } from './session-snapshot.ts'
 import { loadPromptTemplates, savePromptTemplate } from './prompt-templates.ts'
+import {
+  loadTranscriptionCleanupSystemPrompt,
+  transcribeAudio,
+  transcriptionStatus,
+} from './features/dictation/transcription.ts'
 import { externalWorkspacePath, openPath } from './system-integration.ts'
 import { expandHomePath } from './home-path.ts'
 import type {
@@ -44,6 +49,9 @@ import type {
   SessionSnapshot,
 } from '../shared/types.ts'
 import { isObject } from '../shared/is-object.ts'
+
+/** Maximum base64-encoded recording accepted for one dictation, well under the JSON body limit. */
+const maxDictationBytes = 1_000_000
 
 const host = '127.0.0.1'
 const port = readPort('PI_LIVECRAFT_BACKEND_PORT', 43_121)
@@ -169,6 +177,11 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
     if (typeof body.sessionId !== 'string' || !body.sessionId)
       throw new HttpError(409, 'An open Pi session is required to refresh quotas.')
     sendJson(response, 200, await quotas.refresh(body.sessionId, body.automatic === true))
+    return
+  }
+
+  if (method === 'GET' && url.pathname === '/api/transcription') {
+    sendJson(response, 200, await transcriptionStatus())
     return
   }
 
@@ -514,6 +527,33 @@ async function route(request: IncomingMessage, response: ServerResponse): Promis
     return
   }
 
+  const transcriptionMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)\/transcription$/)
+  if (method === 'POST' && transcriptionMatch) {
+    const body = await readJsonBody(request)
+    if (typeof body.audio !== 'string' || !body.audio) {
+      throw new HttpError(400, 'Recorded audio is required')
+    }
+    const audio = Buffer.from(body.audio, 'base64')
+    if (audio.length === 0) throw new HttpError(400, 'Recorded audio is empty')
+    if (audio.length > maxDictationBytes)
+      throw new HttpError(413, 'Recording exceeds the dictation size limit')
+    const language = typeof body.language === 'string' && /^[a-z]{2,3}$/i.test(body.language)
+      ? body.language
+      : 'auto'
+    const text = await transcribeAudio(
+      audio,
+      typeof body.mimeType === 'string' ? body.mimeType : 'audio/webm',
+      language,
+    )
+    if (body.clean !== true) {
+      sendJson(response, 200, { text, cleaned: false })
+      return
+    }
+    const cleaned = await cleanDictation(decodeURIComponent(transcriptionMatch[1]), text)
+    sendJson(response, 200, cleaned)
+    return
+  }
+
   const commandMatch = url.pathname.match(/^\/api\/sessions\/([^/]+)\/commands$/)
   if (method === 'POST' && commandMatch) {
     const command = await readJsonBody(request)
@@ -539,6 +579,34 @@ async function piCommand(sessionId: string, command: JsonObject): Promise<JsonOb
   const response = await manager.request({ action: 'command', sessionId, command })
   if (!isObject(response)) throw new Error('Invalid response from Pi manager')
   return response
+}
+
+/**
+ * Rewrites a dictation in a disposable Pi process, surface-only.
+ *
+ * Returns the raw transcript whenever the cleanup pass is unavailable, so a
+ * dictation is never lost to a failed rewrite.
+ */
+async function cleanDictation(
+  sessionId: string,
+  transcript: string,
+): Promise<{ text: string; cleaned: boolean; cleanupError?: string }> {
+  try {
+    const systemPrompt = await loadTranscriptionCleanupSystemPrompt()
+    const data = await manager.request({
+      action: 'run_prompt',
+      sessionId,
+      prompt: `<transcript>\n${transcript}\n</transcript>`,
+      systemPrompt,
+      thinkingLevel: 'off',
+      includeContextFiles: false,
+    }, 2 * 60_000)
+    const cleaned = isObject(data) && typeof data.text === 'string' ? data.text.trim() : ''
+    if (cleaned) return { text: cleaned, cleaned: true }
+    return { text: transcript, cleaned: false, cleanupError: 'The cleanup pass returned no text' }
+  } catch (error) {
+    return { text: transcript, cleaned: false, cleanupError: errorMessage(error) }
+  }
 }
 
 function objectData(response: JsonObject): JsonObject | null {

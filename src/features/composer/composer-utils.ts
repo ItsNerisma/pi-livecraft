@@ -30,6 +30,30 @@ export function ensureCompactCommand(commands: JsonObject[]): JsonObject[] {
     : [{ name: 'compact' }, ...commands]
 }
 
+/** Inserts a transcript at the caret, spacing it away from the surrounding draft. */
+export function insertTranscript(
+  draft: string,
+  transcript: string,
+  start: number,
+  end: number,
+): { text: string; caret: number } {
+  const dictation = transcript.trim()
+  if (!dictation) return { text: draft, caret: end }
+  const before = draft.slice(0, start)
+  const after = draft.slice(end)
+  const lead = before && !/\s$/.test(before) ? ' ' : ''
+  const trail = after && !/^\s/.test(after) ? ' ' : ''
+  const text = `${before}${lead}${dictation}${trail}${after}`
+  return { text, caret: before.length + lead.length + dictation.length }
+}
+
+/** Returns a short language code a recogniser accepts, or undefined for anything else. */
+export function normalizeLanguage(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim().toLowerCase()
+  return /^[a-z]{2,3}$/.test(trimmed) ? trimmed : undefined
+}
+
 /** Restores the draft for one session from local storage. */
 export function readComposerDraft(storageKey: string): string {
   try {

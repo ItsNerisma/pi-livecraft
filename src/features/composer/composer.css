@@ -527,6 +527,34 @@
   border-radius: 50%;
   animation: spin 800ms linear infinite;
 }
+.icon-button.dictation svg {
+  width: 16px;
+  height: 16px;
+}
+.icon-button.dictation.recording {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  color: var(--danger);
+  animation: dictation-pulse 1.6s ease-in-out infinite;
+}
+.icon-button.dictation.recording:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 18%, var(--surface));
+}
+@keyframes dictation-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 32%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 0%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .icon-button.dictation.recording {
+    animation: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .composer-select-spinner {
     animation: none;

@@ -19,6 +19,7 @@ All data arrives through props. The Composer never calls the backend directly.
 | `Composer.tsx` | Form, textarea, images, slash-commands, send/stop, assembly |
 | `composer.css` | All composer styles |
 | `composer-images.ts` | Image paste, resize, compress (`maxComposerImages` = 4) |
+| `composer-dictation.ts` | Microphone recording, `pi-livecraft.dictation` preferences, caret-aware insertion |
 | `composer-utils.ts` | Label/token formatting, command detection, compact-command fallback, draft loading, `isObject` |
 | `prompt-title.ts` | Immediate session title, replaced later by Pi's extension title |
 | `selects/ComposerSelect.tsx` | Generic Radix Select wrapper with tone-based icons |
@@ -42,6 +43,8 @@ All data arrives through props. The Composer never calls the backend directly.
 - `preparingImages` — blocks send while clipboard images are being converted.
 - `improving`, `improvePreset`, `suggestion` — isolated rewrite request and explicit comparison.
 - `previewingPrompt`, `savedPrompts`, `promptSave`, `savingPrompt` — prompt preview and save flow.
+- `dictating` — `idle`, `recording`, or `transcribing`; the microphone button and
+  `submit()` share it, so sending during a recording transcribes first.
 
 ## Selects
 

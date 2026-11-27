@@ -49,6 +49,9 @@ App.tsx  ──props──→  Composer.tsx  ──onSend / onCommand / onAbort�
 | `onSend(message, images, behavior)` | Send a prompt with optional images |
 | `onAbort()` | Stop generation |
 | `onImprovePrompt(prompt, direction)` | Rewrite the draft through an isolated prompt |
+| `dictation` | Voice-input preferences (`pi-livecraft.dictation`) owned by `App.tsx` |
+| `transcriptionStatus` | Backend whisper.cpp prerequisites, or `null` while unknown |
+| `onTranscribe(audio, options)` | Transcribe one recorded clip |
 | `onSavePrompt(scope, name, content)` | Persist a prompt template globally or for the project |
 | `onError(cause)` | Report an error to the notification stack |
 

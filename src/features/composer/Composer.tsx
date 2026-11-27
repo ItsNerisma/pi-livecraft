@@ -18,8 +18,16 @@ import type {
 } from '../../../shared/types.ts'
 import { maxComposerImages, prepareComposerImage, type ComposerImage } from './composer-images.ts'
 import {
+  dictationSupported,
+  startDictation,
+  type DictationPreferences,
+  type DictationRecording,
+} from './composer-dictation.ts'
+import type { TranscriptionStatus } from '../../api.ts'
+import {
   ensureCompactCommand,
   formatTokens,
+  insertTranscript,
   isCommandDraft,
   isCompactCommandDraft,
   isObject,
@@ -40,6 +48,9 @@ const improveOptions = [
   { label: 'Precise', value: 'precise' },
 ]
 
+/** Upper bound for one dictation, matching a comfortable paragraph of speech. */
+const maxDictationMs = 120_000
+
 /** Provides user input and session commands while reflecting the current Pi state. */
 export const Composer = memo(function Composer({
   session,
@@ -59,6 +70,9 @@ export const Composer = memo(function Composer({
   onSend,
   onAbort,
   onImprovePrompt,
+  dictation,
+  transcriptionStatus,
+  onTranscribe,
   onSavePrompt,
   onError,
   requestedSelect,
@@ -93,6 +107,15 @@ export const Composer = memo(function Composer({
     prompt: string,
     direction?: string,
   ) => Promise<{ prompt: string; cost?: number }>
+  /** Persistent voice-input preferences owned by the settings feature. */
+  dictation: DictationPreferences
+  /** Backend prerequisites for local dictation; `null` while unknown. */
+  transcriptionStatus: TranscriptionStatus | null
+  /** Transcribes one recorded clip, optionally applying the cleanup pass. */
+  onTranscribe: (
+    audio: Blob,
+    options: { clean: boolean; language: string },
+  ) => Promise<{ text: string; cleaned: boolean; cleanupError?: string }>
   onSavePrompt: (
     scope: 'global' | 'project',
     name: string,
@@ -125,7 +148,10 @@ export const Composer = memo(function Composer({
     { original: string; improved: string; cost?: number }
   >()
   const [openSelect, setOpenSelect] = useState<'agent' | 'model' | 'thinking' | null>(null)
+  const [dictating, setDictating] = useState<'idle' | 'recording' | 'transcribing'>('idle')
   const formRef = useRef<HTMLFormElement>(null)
+  const recordingRef = useRef<DictationRecording | undefined>(undefined)
+  const pendingCaretRef = useRef<number | undefined>(undefined)
   const promptSaveDialogRef = useRef<HTMLDialogElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const promptPreviewOriginal = useRef<string | undefined>(undefined)
@@ -215,6 +241,25 @@ export const Composer = memo(function Composer({
     textareaRef.current?.focus()
     onDraftApplied?.(draftRequest.id)
   }, [draftRequest, onDraftApplied])
+
+  // Stop a forgotten recording so it cannot produce an unbounded clip.
+  // oxlint-disable react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (dictating !== 'recording') return
+    const timer = window.setTimeout(() => void transcribeDraft(), maxDictationMs)
+    return () => window.clearTimeout(timer)
+  }, [dictating])
+
+  // Place the caret after an inserted transcript so continued typing follows the dictation.
+  useLayoutEffect(() => {
+    const caret = pendingCaretRef.current
+    if (caret === undefined) return
+    pendingCaretRef.current = undefined
+    const textarea = textareaRef.current
+    if (!textarea) return
+    textarea.focus()
+    textarea.setSelectionRange(caret, caret)
+  }, [message])
 
   // Place the caret at the end when the browser restores focus on refresh.
   useLayoutEffect(() => {
@@ -341,7 +386,9 @@ export const Composer = memo(function Composer({
   /** Sends text and images in the same RPC command, restoring the draft on failure. */
   async function submit(event: FormEvent): Promise<void> {
     event.preventDefault()
-    const nextMessage = message.trim()
+    if (dictating === 'transcribing') return
+    const draft = dictating === 'recording' ? await transcribeDraft() : messageRef.current
+    const nextMessage = draft.trim()
     if (preparingImages || (!nextMessage && images.length === 0)) return
     if (images.length > 0 && !supportsImages) {
       onError('The selected model does not accept images.')
@@ -393,6 +440,65 @@ export const Composer = memo(function Composer({
     setImprovePreset(value)
     void improveDraft(value)
   }, [improveDraft])
+
+  /** Opens the microphone, reporting an unavailable device or an unsupported browser. */
+  async function startDictating(): Promise<void> {
+    if (!dictationSupported()) {
+      onError(new Error('This browser cannot record audio for dictation.'))
+      return
+    }
+    if (recordingRef.current) return
+    try {
+      recordingRef.current = await startDictation()
+      setDictating('recording')
+    } catch (cause) {
+      onError(cause)
+    }
+  }
+
+  /**
+   * Stops the microphone, transcribes the clip, and inserts the text at the caret.
+   *
+   * Returns the resulting draft so `submit()` can send the dictated text in the
+   * same gesture, without waiting for a re-render.
+   */
+  async function transcribeDraft(): Promise<string> {
+    const recording = recordingRef.current
+    recordingRef.current = undefined
+    if (!recording) return messageRef.current
+    setDictating('transcribing')
+    try {
+      const audio = await recording.stop()
+      const result = await onTranscribe(audio, {
+        clean: dictation.cleanup,
+        language: dictation.language,
+      })
+      const textarea = textareaRef.current
+      const start = textarea?.selectionStart ?? messageRef.current.length
+      const end = textarea?.selectionEnd ?? start
+      const inserted = insertTranscript(messageRef.current, result.text, start, end)
+      messageRef.current = inserted.text
+      pendingCaretRef.current = inserted.caret
+      setDraftMessage(inserted.text)
+      if (result.cleanupError) {
+        onError(new Error(`Transcription inserted without cleanup: ${result.cleanupError}`))
+      }
+      return inserted.text
+    } catch (cause) {
+      onError(cause)
+      return messageRef.current
+    } finally {
+      setDictating('idle')
+    }
+  }
+
+  const dictationLabel = transcriptionStatus?.available === false
+    ? transcriptionStatus.hint
+    : dictating === 'recording'
+    ? 'Stop dictation and insert text'
+    : dictating === 'transcribing'
+    ? 'Transcribing…'
+    : 'Dictate with your voice'
 
   /** Prepares pasted images locally to bound the HTTP body and context sent to the model. */
   async function handlePaste(event: ReactClipboardEvent<HTMLTextAreaElement>): Promise<void> {
@@ -634,6 +740,37 @@ export const Composer = memo(function Composer({
             </Tooltip>
 
             {running && <BehaviorSelect behavior={behavior} onChange={setBehavior} />}
+            {dictation.enabled && (
+              <Tooltip label={dictationLabel}>
+                <button
+                  aria-label={dictationLabel}
+                  className={`icon-button dictation${
+                    dictating === 'recording' ? ' recording' : ''
+                  }`}
+                  disabled={dictating === 'transcribing' || submitting
+                    || transcriptionStatus?.available === false}
+                  onClick={() => {
+                    if (dictating === 'recording') void transcribeDraft()
+                    else void startDictating()
+                  }}
+                  type='button'
+                >
+                  {dictating === 'transcribing'
+                    ? <span aria-hidden='true' className='composer-select-spinner' />
+                    : dictating === 'recording'
+                    ? (
+                      <svg aria-hidden='true' viewBox='0 0 24 24'>
+                        <rect height='9' rx='2' width='9' x='7.5' y='7.5' />
+                      </svg>
+                    )
+                    : (
+                      <svg aria-hidden='true' viewBox='0 0 24 24'>
+                        <path d='M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z' />
+                      </svg>
+                    )}
+                </button>
+              </Tooltip>
+            )}
             <Tooltip label='Improve prompt'>
               <ComposerSelect
                 ariaLabel='Improve prompt'
@@ -668,8 +805,8 @@ export const Composer = memo(function Composer({
               <button
                 aria-label={commandPending ? 'Run command' : 'Send message'}
                 className={`icon-button send${commandPending ? ' command' : ''}`}
-                disabled={submitting || preparingImages
-                  || (!message.trim() && images.length === 0)}
+                disabled={submitting || preparingImages || dictating === 'transcribing'
+                  || (!message.trim() && images.length === 0 && dictating !== 'recording')}
                 type='submit'
               >
                 {commandPending

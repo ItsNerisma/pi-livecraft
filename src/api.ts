@@ -292,6 +292,56 @@ export async function sendPiCommand(sessionId: string, command: JsonObject): Pro
   })
 }
 
+/** Local dictation prerequisites reported by the backend. */
+export interface TranscriptionStatus {
+  available: boolean
+  binary: string | null
+  model: string | null
+  ffmpeg: boolean
+  /** Remediation shown when local dictation cannot run. */
+  hint: string
+}
+
+/** Reads whether local dictation can run on this machine. */
+export async function fetchTranscriptionStatus(): Promise<TranscriptionStatus> {
+  return request<TranscriptionStatus>('/api/transcription')
+}
+
+/**
+ * Transcribes one recorded clip without adding it to the Pi session.
+ *
+ * When `clean` is set, the backend also applies the surface cleanup pass and
+ * reports why it fell back to the raw transcript.
+ */
+export async function transcribeRecording(
+  sessionId: string,
+  audio: Blob,
+  options: { clean: boolean; language: string },
+): Promise<{ text: string; cleaned: boolean; cleanupError?: string }> {
+  return request<{ text: string; cleaned: boolean; cleanupError?: string }>(
+    `/api/sessions/${encodeURIComponent(sessionId)}/transcription`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        audio: await base64Audio(audio),
+        mimeType: audio.type || 'audio/webm',
+        ...options,
+      }),
+    },
+  )
+}
+
+/** Encodes a recording for the JSON request body shared by every backend route. */
+async function base64Audio(audio: Blob): Promise<string> {
+  const bytes = new Uint8Array(await audio.arrayBuffer())
+  let binary = ''
+  const chunkSize = 0x8_000
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize))
+  }
+  return btoa(binary)
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
