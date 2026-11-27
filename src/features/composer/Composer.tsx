@@ -758,6 +758,20 @@ export const Composer = memo(function Composer({
             </Tooltip>
           </div>
           <div className='composer-primary-actions'>
+            {running && (
+              <Tooltip label='Stop generation'>
+                <button
+                  aria-label='Stop generation'
+                  className='icon-button danger'
+                  onClick={() => void onAbort().catch(onError)}
+                  type='button'
+                >
+                  <svg aria-hidden='true' viewBox='0 0 16 16'>
+                    <rect height='8' rx='1.5' width='8' x='4' y='4' />
+                  </svg>
+                </button>
+              </Tooltip>
+            )}
             {dictation.enabled && (
               <Tooltip label={dictationLabel}>
                 <button
@@ -789,22 +803,6 @@ export const Composer = memo(function Composer({
                 </button>
               </Tooltip>
             )}
-            <span className='composer-stop-slot'>
-              {running && (
-                <Tooltip label='Stop generation'>
-                  <button
-                    aria-label='Stop generation'
-                    className='icon-button danger'
-                    onClick={() => void onAbort().catch(onError)}
-                    type='button'
-                  >
-                    <svg aria-hidden='true' viewBox='0 0 16 16'>
-                      <rect height='8' rx='1.5' width='8' x='4' y='4' />
-                    </svg>
-                  </button>
-                </Tooltip>
-              )}
-            </span>
             <Tooltip label={commandPending ? 'Run command (Enter)' : 'Send message (Enter)'}>
               <button
                 aria-label={commandPending ? 'Run command' : 'Send message'}
