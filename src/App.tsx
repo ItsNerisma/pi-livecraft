@@ -32,6 +32,7 @@ import type {
 } from '../shared/types.ts'
 import { isObject } from '../shared/is-object.ts'
 import { Composer } from './features/composer/Composer.tsx'
+import { promptDelivery, type MessageBehavior } from './features/composer/composer-utils.ts'
 import { DictationSetupDialog } from './features/composer/DictationSetupDialog.tsx'
 import {
   readDictationPreferences,
@@ -860,12 +861,16 @@ function App() {
     async (
       message: string,
       images: JsonObject[],
-      behavior: 'steer' | 'followUp',
+      behavior: MessageBehavior,
       isCommand: boolean,
     ) => {
+      const delivery = promptDelivery(behavior, !isCommand && selectedSessionStatus === 'running')
+      // `abort` answers once Pi is idle, so the prompt below starts a fresh run instead of
+      // queueing behind the turn the user chose to interrupt.
+      if (delivery.abort) await sendPiCommand(selectedId, { type: 'abort' })
       const command: JsonObject = { type: 'prompt', message, images }
-      const isSteering = !isCommand && selectedSessionStatus === 'running' && behavior === 'steer'
-      if (selectedSessionStatus === 'running') command.streamingBehavior = behavior
+      if (delivery.streamingBehavior) command.streamingBehavior = delivery.streamingBehavior
+      const isSteering = delivery.streamingBehavior === 'steer'
       if (isSteering) addPendingSteering(message)
       const optimisticId = !isSteering && !isCommand ? addOptimisticUserMessage(message) : undefined
       try {

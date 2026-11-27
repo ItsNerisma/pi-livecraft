@@ -23,6 +23,22 @@ export function isCompactCommandDraft(text: string): boolean {
   return text.trim() === '/compact'
 }
 
+/** How the composer delivers the next message to a running Pi session. */
+export type MessageBehavior = 'steer' | 'interrupt' | 'followUp'
+
+/**
+ * Maps a behavior to the RPC sequence Pi expects. `interrupt` sends `abort` first, so the
+ * following prompt starts a fresh run instead of queueing behind the interrupted turn.
+ */
+export function promptDelivery(
+  behavior: MessageBehavior,
+  streaming: boolean,
+): { abort: boolean; streamingBehavior?: 'steer' | 'followUp' } {
+  if (!streaming) return { abort: false }
+  if (behavior === 'interrupt') return { abort: true }
+  return { abort: false, streamingBehavior: behavior }
+}
+
 /** Prepends the local compact command when Pi does not already expose it in the snapshot. */
 export function ensureCompactCommand(commands: JsonObject[]): JsonObject[] {
   return commands.some((cmd) => String(cmd.name).toLowerCase() === 'compact')

@@ -19,7 +19,7 @@ composer/
 │   ├── ModelSelect.tsx       # Model picker (snapshot → RPC)
 │   ├── PromptSelect.tsx      # Prompt template preview, insertion, and saving
 │   ├── ThinkingSelect.tsx    # Thinking level picker (snapshot → RPC)
-│   └── BehaviorSelect.tsx    # Steer / Follow-up (running only)
+│   └── BehaviorSelect.tsx    # Steer / Interrupt / Follow-up (running only)
 └── status-bar/
     ├── ComposerStatusBar.tsx # Layout container
     ├── SessionInfo.tsx       # Name, cwd, active dot
@@ -46,7 +46,7 @@ App.tsx  ──props──→  Composer.tsx  ──onSend / onCommand / onAbort�
 | `snapshot` | Current Pi state (`state`, `models`, `stats`, `commands`) |
 | `commands` | Available slash commands from `snapshot.commands` |
 | `onCommand(command)` | Send any RPC command (`set_model`, `set_thinking_level`, …) |
-| `onSend(message, images, behavior)` | Send a prompt with optional images |
+| `onSend(message, images, behavior)` | Send a prompt with optional images and a delivery mode (`steer`, `interrupt`, `followUp`) |
 | `onAbort()` | Stop generation |
 | `onImprovePrompt(prompt, direction)` | Rewrite the draft through an isolated prompt |
 | `dictation` | Voice-input preferences (`pi-livecraft.dictation`) owned by `App.tsx` |

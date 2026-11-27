@@ -91,7 +91,7 @@ Open [http://127.0.0.1:5173](http://127.0.0.1:5173) and you should see Livecraft
 
 - **Workspace sections and parallel sessions:** start a session in any folder the host can browse, then find it again under a collapsible section named after that folder. Create, switch, reopen, and monitor Pi sessions across workspaces; running and newly completed sessions stay visible with their status
 
-- **A Pi-native composer:** send text and images, dictate a prompt with your voice, use slash commands, stop a request, choose the models, thinking levels, and saved prompts exposed by Pi, and steer or queue follow-ups while Pi is working
+- **A Pi-native composer:** send text and images, dictate a prompt with your voice, use slash commands, stop a request, choose the models, thinking levels, and saved prompts exposed by Pi, and steer, interrupt, or queue follow-ups while Pi is working
 
 - **Isolated prompts:** run a one-off Pi prompt from a widget, command, or anywhere really. By default it uses the cheapest available model in your Pi installation, returns one answer, and does not add anything to the active conversation
 

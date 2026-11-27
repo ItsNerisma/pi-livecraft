@@ -21,14 +21,14 @@ All data arrives through props. The Composer never calls the backend directly.
 | `composer-images.ts` | Image paste, resize, compress (`maxComposerImages` = 4) |
 | `composer-dictation.ts` | Microphone recording, `pi-livecraft.dictation` preferences |
 | `DictationSetupDialog.tsx` | Guided whisper.cpp setup: prerequisite checklist, copiable command, model download |
-| `composer-utils.ts` | Label/token formatting, command detection, compact-command fallback, draft loading, `isObject` |
+| `composer-utils.ts` | Label/token formatting, command detection, compact-command fallback, prompt delivery mapping, draft loading, `isObject` |
 | `prompt-title.ts` | Immediate session title, replaced later by Pi's extension title |
 | `selects/ComposerSelect.tsx` | Generic Radix Select wrapper with tone-based icons |
 | `selects/AgentSelect.tsx` | Agent picker — derives label from options, calls `onAgentChange` |
 | `selects/ModelSelect.tsx` | Model picker — builds RPC `set_model` command from selection |
 | `selects/ThinkingSelect.tsx` | Thinking level — maps level to `set_thinking_level` RPC |
 | `selects/PromptSelect.tsx` | Prompt templates — previews, inserts, and saves Pi-discovered templates |
-| `selects/BehaviorSelect.tsx` | Steer / Follow-up toggle, only rendered while Pi is running |
+| `selects/BehaviorSelect.tsx` | Steer / Interrupt / Follow-up select, only rendered while Pi is running |
 | `status-bar/ComposerStatusBar.tsx` | Layout container for session info and stats |
 | `status-bar/SessionInfo.tsx` | Session name, cwd, active status dot |
 | `status-bar/SessionStats.tsx` | Cost and context usage with progress bar |
@@ -39,7 +39,9 @@ All data arrives through props. The Composer never calls the backend directly.
   (`pi-livecraft.composer-draft.<sessionId>`).
 - `slashOpen`, `slashFilter`, `slashIndex` — slash-command popover.
 - `openSelect` — which dropdown (agent/model/thinking) is open.
-- `behavior` — `steer` vs `followUp`, only visible while Pi is running.
+- `behavior` — `steer`, `interrupt`, or `followUp`; only visible while Pi is running.
+  `steer` and `followUp` travel as `streamingBehavior`; `interrupt` sends `abort`
+  first, waits for Pi to become idle, then sends a plain `prompt`.
 - `submitting` — prevents double-send during the API call.
 - `preparingImages` — blocks send while clipboard images are being converted.
 - `improving`, `improvePreset`, `suggestion` — isolated rewrite request and explicit comparison.

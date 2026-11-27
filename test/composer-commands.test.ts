@@ -4,7 +4,26 @@ import {
   ensureCompactCommand,
   isCommandDraft,
   isCompactCommandDraft,
+  promptDelivery,
 } from '../src/features/composer/composer-utils.ts'
+
+test('delivers an interrupt as an abort before a plain prompt', () => {
+  assert.deepEqual(promptDelivery('interrupt', true), { abort: true })
+})
+
+test('queues steer and follow-up through streamingBehavior', () => {
+  assert.deepEqual(promptDelivery('steer', true), { abort: false, streamingBehavior: 'steer' })
+  assert.deepEqual(promptDelivery('followUp', true), {
+    abort: false,
+    streamingBehavior: 'followUp',
+  })
+})
+
+test('starts a plain run when Pi is idle, whatever the selected behavior', () => {
+  for (const behavior of ['steer', 'interrupt', 'followUp'] as const) {
+    assert.deepEqual(promptDelivery(behavior, false), { abort: false })
+  }
+})
 
 test('detects only slash commands exposed by Pi', () => {
   const commands = [{ name: 'agent' }, { name: 'session-name' }]

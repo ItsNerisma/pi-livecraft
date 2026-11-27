@@ -32,6 +32,7 @@ import {
   isCompactCommandDraft,
   isObject,
   readComposerDraft,
+  type MessageBehavior,
 } from './composer-utils.ts'
 import { AgentSelect } from './selects/AgentSelect.tsx'
 import { BehaviorSelect } from './selects/BehaviorSelect.tsx'
@@ -100,7 +101,7 @@ export const Composer = memo(function Composer({
   onSend: (
     message: string,
     images: JsonObject[],
-    behavior: 'steer' | 'followUp',
+    behavior: MessageBehavior,
     isCommand: boolean,
   ) => Promise<void>
   onAbort: () => Promise<JsonObject>
@@ -165,7 +166,7 @@ export const Composer = memo(function Composer({
   const [slashOpen, setSlashOpen] = useState(false)
   const [slashFilter, setSlashFilter] = useState('')
   const [slashIndex, setSlashIndex] = useState(-1)
-  const [behavior, setBehavior] = useState<'steer' | 'followUp'>('steer')
+  const [behavior, setBehavior] = useState<MessageBehavior>('steer')
   const model = isObject(snapshot.state?.model) ? snapshot.state.model : null
   const currentModel = model && typeof model.id === 'string' && typeof model.provider === 'string'
     ? `${model.provider}/${model.id}`
