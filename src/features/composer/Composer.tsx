@@ -69,6 +69,7 @@ export const Composer = memo(function Composer({
   running,
   compacting,
   goalMode,
+  goalLocked,
   onGoalModeChange,
   onSend,
   onAbort,
@@ -101,6 +102,7 @@ export const Composer = memo(function Composer({
   running: boolean
   compacting: boolean
   goalMode: boolean
+  goalLocked: boolean
   onGoalModeChange: (enabled: boolean) => void
   onSend: (
     message: string,
@@ -705,11 +707,18 @@ export const Composer = memo(function Composer({
       <div className='composer-footer'>
         <div className='composer-actions'>
           <div className='composer-tools'>
-            <Tooltip label={goalMode ? 'Disable goal mode' : 'Enable goal mode'}>
+            <Tooltip
+              label={goalLocked
+                ? 'Goal runs until verified'
+                : goalMode
+                ? 'Disable goal mode'
+                : 'Enable goal mode'}
+            >
               <button
                 aria-label={goalMode ? 'Disable goal mode' : 'Enable goal mode'}
                 aria-pressed={goalMode}
                 className={`goal-toggle${goalMode ? ' active' : ''}`}
+                disabled={goalLocked}
                 onClick={() => onGoalModeChange(!goalMode)}
                 type='button'
               >

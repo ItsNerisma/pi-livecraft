@@ -167,6 +167,7 @@ function App() {
   // Workspace and sessions
   const [compactingSessionIds, setCompactingSessionIds] = useState<ReadonlySet<string>>(new Set())
   const [goalModeSessionIds, setGoalModeSessionIds] = useState<ReadonlySet<string>>(new Set())
+  const [goalActiveSessionIds, setGoalActiveSessionIds] = useState<ReadonlySet<string>>(new Set())
   const [goalStatuses, setGoalStatuses] = useState<Record<string, string>>({})
   const [goalObjectives, setGoalObjectives] = useState<Record<string, string>>({})
   const goalRef = useRef(
@@ -193,6 +194,11 @@ function App() {
       return next
     })
     setGoalModeSessionIds((current) => {
+      const next = new Set(current)
+      next.delete(sessionId)
+      return next
+    })
+    setGoalActiveSessionIds((current) => {
       const next = new Set(current)
       next.delete(sessionId)
       return next
@@ -925,6 +931,7 @@ function App() {
   // Selected session and loading state
   const selectedSession = sessions.find((session) => session.id === selectedId)
   const goalMode = goalModeSessionIds.has(selectedId)
+  const goalActive = goalActiveSessionIds.has(selectedId)
   const goalObjective = goalObjectives[selectedId] ?? ''
   const goalStatus = goalStatuses[selectedId] ?? null
   const selectedSessionId = selectedSession?.id
@@ -1020,6 +1027,7 @@ function App() {
         : null
       if (startedGoal) {
         goalRef.current.set(selectedId, startedGoal)
+        setGoalActiveSessionIds((current) => new Set(current).add(selectedId))
         setGoalStatuses((current) => {
           const next = { ...current }
           delete next[selectedId]
@@ -1524,6 +1532,7 @@ function App() {
                       running={agentTurnRunning}
                       compacting={displayedActivity?.kind === 'compacting'}
                       goalMode={goalMode}
+                      goalLocked={goalActive}
                       onGoalModeChange={handleGoalModeChange}
                       onSend={handleComposerSend}
                       onAbort={handleComposerAbort}
